@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import maplibregl, { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -67,6 +68,9 @@ const SATELLITE_STYLE: StyleSpecification = {
 };
 
 export default function Map({ alerts, selectedId, onSelect }: Props) {
+  const tAlert = useTranslations("alert");
+  const tContam = useTranslations("contamination");
+
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -115,22 +119,39 @@ export default function Map({ alerts, selectedId, onSelect }: Props) {
       dot.style.background = color;
       root.appendChild(dot);
 
-      const operator = alert.attribution?.operator_name ?? "Detectando…";
+      const operator = alert.attribution?.operator_name ?? tAlert("detecting");
+      const typeKey =
+        alert.contamination_type === "hydrocarbon"
+          ? "hydrocarbon_short"
+          : alert.contamination_type === "turbidity"
+          ? "turbidity_short"
+          : alert.contamination_type === "algal_bloom"
+          ? "algal_bloom_short"
+          : null;
+      const typeLabel = typeKey ? tContam(typeKey as any) : alert.contamination_type;
+      const confidenceLabel = tAlert("confidence");
+
       const popup = new maplibregl.Popup({
         offset: 16,
         closeButton: false,
         className: "gda-popup",
       }).setHTML(
         `<div style="min-width:160px;">
-          <div style="font-weight:600;color:#e2e8f0;margin-bottom:2px;">${operator}</div>
+          <div style="font-weight:600;color:#e2e8f0;margin-bottom:2px;">${escapeHtml(
+            operator
+          )}</div>
           <div style="color:#94a3b8;font-size:11px;">
-            ${alert.contamination_type} · ${(alert.confidence * 100).toFixed(0)}% confianza
+            ${escapeHtml(typeLabel)} · ${(alert.confidence * 100).toFixed(0)}% ${escapeHtml(
+          confidenceLabel
+        )}
           </div>
           ${
             alert.predictions
-              ? `<div style="color:#fca5a5;font-size:11px;margin-top:2px;">${alert.predictions.people_affected_30d?.toLocaleString(
-                  "es-PE"
-                )} afectados</div>`
+              ? `<div style="color:#fca5a5;font-size:11px;margin-top:2px;">${escapeHtml(
+                  tAlert("affected_30d_long", {
+                    count: alert.predictions.people_affected_30d?.toLocaleString() ?? "—",
+                  })
+                )}</div>`
               : ""
           }
         </div>`
@@ -145,7 +166,11 @@ export default function Map({ alerts, selectedId, onSelect }: Props) {
         e.stopPropagation();
         onSelect(alert.alert_id);
         if (mapRef.current) {
-          mapRef.current.flyTo({ center: [lon, lat], zoom: Math.max(mapRef.current.getZoom(), 8), speed: 0.8 });
+          mapRef.current.flyTo({
+            center: [lon, lat],
+            zoom: Math.max(mapRef.current.getZoom(), 8),
+            speed: 0.8,
+          });
         }
       });
       root.addEventListener("mouseenter", () => marker.togglePopup());
@@ -153,7 +178,16 @@ export default function Map({ alerts, selectedId, onSelect }: Props) {
 
       markersRef.current.push(marker);
     });
-  }, [alerts, selectedId, onSelect]);
+  }, [alerts, selectedId, onSelect, tAlert, tContam]);
 
   return <div ref={containerRef} className="w-full h-full" />;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

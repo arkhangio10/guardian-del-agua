@@ -1,6 +1,8 @@
+import AccessRequestForm from "@/components/AccessRequestForm";
+
 export const metadata = {
-  title: "Modelo de acceso — Guardián del Agua",
-  description: "Open-core: gratis para federaciones indígenas y periodistas; tarifas público-pagas sostienen el código abierto. Operadores extractivos: no vendemos.",
+  title: "Acceso — Guardián del Agua",
+  description: "Solicitá acceso al sistema: federaciones indígenas, periodistas, abogados ambientales e investigadores. Open-core: gratis para quien lo necesita.",
 };
 
 interface Tier {
@@ -81,24 +83,32 @@ const TIERS: Tier[] = [
 
 export default function PricingPage() {
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10 space-y-8 text-slate-200">
-      <header className="space-y-2">
-        <p className="text-xs uppercase tracking-wider text-teal-400">Modelo de acceso</p>
-        <h1 className="text-3xl md:text-4xl font-bold text-teal-300">
-          Open-core: gratis para quien lo necesita, pagado por quien puede.
-        </h1>
-        <p className="text-slate-300 max-w-3xl">
-          Todos los ingresos de los tiers pagados sostienen el desarrollo del código
-          abierto y la operación gratuita del <strong className="text-teal-200">Tier Comunitario</strong>.
-        </p>
-      </header>
+    <div className="max-w-6xl mx-auto px-6 py-10 space-y-10 text-slate-200">
+      {/* === Hero: access request form === */}
+      <AccessRequestForm />
 
-      <div className="grid md:grid-cols-2 gap-5">
-        {TIERS.map((t) => (
-          <TierCard key={t.name} tier={t} />
-        ))}
-      </div>
+      {/* === Pricing tiers === */}
+      <section className="space-y-6">
+        <header className="space-y-2">
+          <p className="text-xs uppercase tracking-wider text-teal-400">Modelo de acceso</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-teal-300">
+            Open-core: gratis para quien lo necesita, pagado por quien puede.
+          </h2>
+          <p className="text-slate-300 max-w-3xl">
+            Todos los ingresos de los tiers pagados sostienen el desarrollo del código
+            abierto y la operación gratuita del{" "}
+            <strong className="text-teal-200">Tier Comunitario</strong>.
+          </p>
+        </header>
 
+        <div className="grid md:grid-cols-2 gap-5">
+          {TIERS.map((t) => (
+            <TierCard key={t.name} tier={t} />
+          ))}
+        </div>
+      </section>
+
+      {/* === Independence rationale === */}
       <section className="border-l-4 border-teal-500 pl-5 py-3 bg-slate-800/40 rounded-r-lg">
         <p className="text-sm text-slate-300">
           <strong className="text-teal-200">¿Por qué hacemos pricing público?</strong>{" "}

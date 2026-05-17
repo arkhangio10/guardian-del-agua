@@ -1,0 +1,92 @@
+{
+  "nav": {
+    "brand": "Guardián del Agua",
+    "tagline": "Esto ya no es denuncia. Es prueba.",
+    "dossiers": "Dossiers",
+    "operators": "Operadores",
+    "access": "Acceso",
+    "independence": "Independencia",
+    "stamp": "hack@latam 2026 · MIT"
+  },
+  "footer": {
+    "byline": "Evidencia probatoria grado-litigación para la Amazonía peruana",
+    "independence": "Compromiso de Independencia",
+    "access": "Modelo de acceso",
+    "license": "Código abierto · MIT"
+  },
+  "home": {
+    "title": "Audit trail probatorio",
+    "title_highlight": "Amazonía peruana",
+    "subtitle": "Sentinel-2 + Claude + Ley peruana · listo para OEFA en menos de 25 horas",
+    "sidebar_title": "Dossiers probatorios",
+    "sidebar_subtitle_one": "{count} evidencia técnica · Cuatro Cuencas / Loreto",
+    "sidebar_subtitle_many": "{count} evidencias técnicas · Cuatro Cuencas / Loreto",
+    "filter_all": "Todos",
+    "no_alerts": "Sin dossiers para este filtro. Ejecutar seed_demo.py o POST /detect/run.",
+    "backend_error": "No se pudo conectar con el backend en {url}.",
+    "legend_title": "Tipo de contaminación"
+  },
+  "contamination": {
+    "hydrocarbon": "Hidrocarburos",
+    "turbidity": "Turbidez alta",
+    "algal_bloom": "Floración algal",
+    "hydrocarbon_short": "Hidrocarburos",
+    "turbidity_short": "Turbidez",
+    "algal_bloom_short": "Floración algal",
+    "hydrocarbon_note": "Claude detectó manchas oscuras con brillo iridiscente en superficie — patrón consistente con derrame de petróleo.",
+    "turbidity_note": "Claude identificó coloración marrón-rojiza atípica en el cauce — sedimentos en suspensión sobre el agua.",
+    "algal_bloom_note": "Claude detectó manchas verdes brillantes — pico de clorofila típico de eutrofización."
+  },
+  "alert": {
+    "detecting": "Detectando…",
+    "unknown_operator": "Operador desconocido",
+    "concession": "Concesión",
+    "confidence": "confianza",
+    "claude_label": "IA",
+    "prior_sanctions": "Sanciones previas",
+    "affected_30d": "Afectados (30d)",
+    "affected_30d_long": "{count} afectados (30d)",
+    "view_dossier_full": "Ver dossier completo",
+    "view_dossier_short": "Ver dossier",
+    "image_unavailable": "Imagen satelital no disponible",
+    "alt_satellite": "Vista satelital del área",
+    "close": "Cerrar"
+  },
+  "drawer": {
+    "label": "Dossier probatorio",
+    "close_aria": "Cerrar dossier",
+    "loading_error": "No se pudo cargar el dossier.",
+    "operator_panel": "Operador responsable",
+    "evidence_panel": "Evidencia satelital",
+    "impact_panel": "Impacto proyectado",
+    "actions_panel": "Acciones legales",
+    "company": "Empresa",
+    "osinergmin": "OSINERGMIN",
+    "legal_status": "Estado legal",
+    "parent_company": "Matriz",
+    "satellite": "Satélite",
+    "image_id": "ID imagen",
+    "bbox": "Bbox (WGS84)",
+    "confidence_claude": "Confianza Claude",
+    "stat_affected_7d": "Afectados (7d)",
+    "stat_affected_30d": "Afectados (30d)",
+    "stat_fish_dieoff": "Mortandad pisc.",
+    "stat_water_sources": "Fuentes en riesgo",
+    "stat_recovery": "Recuperación",
+    "stat_recovery_days": "{days}d",
+    "stat_economic_damage": "Daño económico",
+    "generate_denuncia": "Generar denuncia OEFA (PDF)",
+    "generating": "Generando denuncia…",
+    "denuncia_success": "Denuncia generada en {ms}ms · {bytes} bytes",
+    "denuncia_download": "Descargar PDF",
+    "denuncia_error": "Error generando denuncia: {message}",
+    "no_attribution": "Sin atribución asignada — ejecutar /attribute primero.",
+    "legal_disclaimer": "Documento preliminar. Atribución presunta, sujeta a verificación in situ por la autoridad competente. Requiere firma de representante legal antes de presentación ante OEFA."
+  },
+  "language": {
+    "switcher_aria": "Cambiar idioma",
+    "es": "Español",
+    "en": "Inglés",
+    "qu": "Kichwa amazónico"
+  }
+}

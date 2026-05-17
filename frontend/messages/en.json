@@ -1,0 +1,92 @@
+{
+  "nav": {
+    "brand": "Guardián del Agua",
+    "tagline": "No longer a complaint. It's evidence.",
+    "dossiers": "Dossiers",
+    "operators": "Operators",
+    "access": "Access",
+    "independence": "Independence",
+    "stamp": "hack@latam 2026 · MIT"
+  },
+  "footer": {
+    "byline": "Litigation-grade environmental evidence for the Peruvian Amazon",
+    "independence": "Independence Pledge",
+    "access": "Access model",
+    "license": "Open source · MIT"
+  },
+  "home": {
+    "title": "Evidentiary audit trail",
+    "title_highlight": "Peruvian Amazon",
+    "subtitle": "Sentinel-2 + Claude + Peruvian law · OEFA-ready in under 25 hours",
+    "sidebar_title": "Evidentiary dossiers",
+    "sidebar_subtitle_one": "{count} technical evidence · Cuatro Cuencas / Loreto",
+    "sidebar_subtitle_many": "{count} technical evidences · Cuatro Cuencas / Loreto",
+    "filter_all": "All",
+    "no_alerts": "No dossiers match this filter. Run seed_demo.py or POST /detect/run.",
+    "backend_error": "Could not connect to the backend at {url}.",
+    "legend_title": "Contamination type"
+  },
+  "contamination": {
+    "hydrocarbon": "Hydrocarbons",
+    "turbidity": "High turbidity",
+    "algal_bloom": "Algal bloom",
+    "hydrocarbon_short": "Hydrocarbons",
+    "turbidity_short": "Turbidity",
+    "algal_bloom_short": "Algal bloom",
+    "hydrocarbon_note": "Claude detected dark patches with iridescent sheen on the surface — pattern consistent with an oil spill.",
+    "turbidity_note": "Claude identified atypical reddish-brown coloration in the riverbed — suspended sediments on the water.",
+    "algal_bloom_note": "Claude detected bright green patches — chlorophyll spike typical of eutrophication."
+  },
+  "alert": {
+    "detecting": "Detecting…",
+    "unknown_operator": "Unknown operator",
+    "concession": "Concession",
+    "confidence": "confidence",
+    "claude_label": "AI",
+    "prior_sanctions": "Prior sanctions",
+    "affected_30d": "Affected (30d)",
+    "affected_30d_long": "{count} affected (30d)",
+    "view_dossier_full": "View full dossier",
+    "view_dossier_short": "View dossier",
+    "image_unavailable": "Satellite image unavailable",
+    "alt_satellite": "Satellite view of the area",
+    "close": "Close"
+  },
+  "drawer": {
+    "label": "Evidentiary dossier",
+    "close_aria": "Close dossier",
+    "loading_error": "Could not load the dossier.",
+    "operator_panel": "Responsible operator",
+    "evidence_panel": "Satellite evidence",
+    "impact_panel": "Projected impact",
+    "actions_panel": "Legal actions",
+    "company": "Company",
+    "osinergmin": "OSINERGMIN",
+    "legal_status": "Legal status",
+    "parent_company": "Parent",
+    "satellite": "Satellite",
+    "image_id": "Image ID",
+    "bbox": "Bbox (WGS84)",
+    "confidence_claude": "Claude confidence",
+    "stat_affected_7d": "Affected (7d)",
+    "stat_affected_30d": "Affected (30d)",
+    "stat_fish_dieoff": "Fish die-off",
+    "stat_water_sources": "Water sources at risk",
+    "stat_recovery": "Recovery",
+    "stat_recovery_days": "{days}d",
+    "stat_economic_damage": "Economic damage",
+    "generate_denuncia": "Generate OEFA complaint (PDF)",
+    "generating": "Generating complaint…",
+    "denuncia_success": "Complaint generated in {ms}ms · {bytes} bytes",
+    "denuncia_download": "Download PDF",
+    "denuncia_error": "Error generating complaint: {message}",
+    "no_attribution": "No attribution assigned — run /attribute first.",
+    "legal_disclaimer": "Preliminary document. Attribution presumed, subject to on-site verification by the competent authority. Requires signature of an authorized legal representative before submission to OEFA."
+  },
+  "language": {
+    "switcher_aria": "Change language",
+    "es": "Spanish",
+    "en": "English",
+    "qu": "Amazonian Kichwa"
+  }
+}

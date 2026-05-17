@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import AlertCard from "@/components/AlertCard";
 import AlertInspector from "@/components/AlertInspector";
 import AlertDrawer from "@/components/AlertDrawer";
@@ -11,14 +12,19 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Filter = "all" | "hydrocarbon" | "turbidity" | "algal_bloom";
 
-const FILTERS: { key: Filter; label: string; dot: string }[] = [
-  { key: "all", label: "Todos", dot: "bg-slate-300" },
-  { key: "hydrocarbon", label: "Hidrocarburos", dot: "bg-red-500" },
-  { key: "turbidity", label: "Turbidez", dot: "bg-orange-400" },
-  { key: "algal_bloom", label: "Floración algal", dot: "bg-green-500" },
+const FILTERS: { key: Filter; dot: string; tKey: string }[] = [
+  { key: "all", dot: "bg-slate-300", tKey: "home.filter_all" },
+  { key: "hydrocarbon", dot: "bg-red-500", tKey: "contamination.hydrocarbon_short" },
+  { key: "turbidity", dot: "bg-orange-400", tKey: "contamination.turbidity_short" },
+  { key: "algal_bloom", dot: "bg-green-500", tKey: "contamination.algal_bloom_short" },
 ];
 
 export default function HomePage() {
+  const tHome = useTranslations("home");
+  const tContam = useTranslations("contamination");
+  const tNav = useTranslations("nav");
+  const tRoot = useTranslations();
+
   const [alerts, setAlerts] = useState<any[]>([]);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -55,6 +61,11 @@ export default function HomePage() {
     return c;
   }, [alerts]);
 
+  const sidebarSubtitle =
+    filteredAlerts.length === 1
+      ? tHome("sidebar_subtitle_one", { count: filteredAlerts.length })
+      : tHome("sidebar_subtitle_many", { count: filteredAlerts.length });
+
   return (
     <div className="relative flex flex-col h-full">
       {/* Compact hero */}
@@ -62,17 +73,24 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="min-w-0">
             <h1 className="text-lg md:text-xl font-bold text-slate-50 leading-tight">
-              Audit trail probatorio ·{" "}
-              <span className="text-gradient-teal">Amazonía peruana</span>
+              {tHome("title")} ·{" "}
+              <span className="text-gradient-teal">{tHome("title_highlight")}</span>
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Sentinel-2 + Claude + Ley peruana · listo para OEFA en menos de 25 horas
-            </p>
+            <p className="text-xs text-slate-400 mt-0.5">{tHome("subtitle")}</p>
           </div>
           <div className="ml-auto flex items-center gap-3 text-[11px]">
-            <Pill color="bg-red-500" label={`${counts.hydrocarbon} hidrocarburos`} />
-            <Pill color="bg-orange-400" label={`${counts.turbidity} turbidez`} />
-            <Pill color="bg-green-500" label={`${counts.algal_bloom} algal`} />
+            <Pill
+              color="bg-red-500"
+              label={`${counts.hydrocarbon} ${tContam("hydrocarbon_short").toLowerCase()}`}
+            />
+            <Pill
+              color="bg-orange-400"
+              label={`${counts.turbidity} ${tContam("turbidity_short").toLowerCase()}`}
+            />
+            <Pill
+              color="bg-green-500"
+              label={`${counts.algal_bloom} ${tContam("algal_bloom_short").toLowerCase()}`}
+            />
           </div>
         </div>
       </header>
@@ -81,11 +99,8 @@ export default function HomePage() {
         {/* Sidebar */}
         <aside className="w-[340px] glass-soft border-r border-slate-800/60 flex flex-col overflow-hidden flex-shrink-0">
           <div className="px-4 py-3 border-b border-slate-800/60 flex-shrink-0">
-            <h2 className="font-semibold text-slate-200 text-sm">Dossiers probatorios</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {filteredAlerts.length} evidencia{filteredAlerts.length === 1 ? "" : "s"} técnica
-              {filteredAlerts.length === 1 ? "" : "s"} · Cuatro Cuencas / Loreto
-            </p>
+            <h2 className="font-semibold text-slate-200 text-sm">{tHome("sidebar_title")}</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">{sidebarSubtitle}</p>
           </div>
 
           {/* Filter pills */}
@@ -101,7 +116,7 @@ export default function HomePage() {
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${f.dot}`} />
-                {f.label}
+                {tRoot(f.tKey as any)}
               </button>
             ))}
           </div>
@@ -117,16 +132,11 @@ export default function HomePage() {
             )}
             {!loading && error && (
               <div className="p-4 text-[11px] text-red-300 bg-red-950/20 border-y border-red-900/30">
-                No se pudo conectar con el backend en{" "}
-                <code className="font-mono text-red-200">{API}</code>.
+                {tHome("backend_error", { url: API })}
               </div>
             )}
             {!loading && !error && filteredAlerts.length === 0 && (
-              <p className="p-4 text-[11px] text-slate-500">
-                Sin dossiers para este filtro. Ejecutar{" "}
-                <code className="font-mono bg-slate-800/60 px-1 rounded">seed_demo.py</code> o{" "}
-                <code className="font-mono bg-slate-800/60 px-1 rounded">POST /detect/run</code>.
-              </p>
+              <p className="p-4 text-[11px] text-slate-500">{tHome("no_alerts")}</p>
             )}
             {filteredAlerts.map((a) => (
               <AlertCard
@@ -141,7 +151,7 @@ export default function HomePage() {
 
           {/* Footer chip */}
           <div className="px-4 py-2.5 border-t border-slate-800/60 text-[10px] text-slate-500 leading-relaxed flex-shrink-0">
-            <span className="italic">Esto ya no es denuncia. Es prueba.</span>
+            <span className="italic">{tNav("tagline")}</span>
           </div>
         </aside>
 
@@ -152,11 +162,11 @@ export default function HomePage() {
           {/* Legend */}
           <div className="absolute bottom-4 left-4 glass rounded-xl px-3 py-2.5 text-[11px] space-y-1.5 z-20">
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold pb-1 border-b border-slate-700/40 mb-1">
-              Tipo de contaminación
+              {tHome("legend_title")}
             </div>
-            <LegendItem color="bg-red-500" label="Hidrocarburos" />
-            <LegendItem color="bg-orange-400" label="Turbidez alta" />
-            <LegendItem color="bg-green-500" label="Floración algal" />
+            <LegendItem color="bg-red-500" label={tContam("hydrocarbon")} />
+            <LegendItem color="bg-orange-400" label={tContam("turbidity")} />
+            <LegendItem color="bg-green-500" label={tContam("algal_bloom")} />
           </div>
 
           {/* Floating inspector card */}

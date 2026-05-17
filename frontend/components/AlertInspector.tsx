@@ -1,33 +1,28 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 const TYPE_META: Record<
   string,
-  { label: string; dot: string; ring: string; chip: string; claudeNote: string }
+  { tKey: string; noteKey: string; dot: string; chip: string }
 > = {
   hydrocarbon: {
-    label: "Hidrocarburos",
+    tKey: "hydrocarbon",
+    noteKey: "hydrocarbon_note",
     dot: "bg-red-500",
-    ring: "ring-red-500/40",
     chip: "bg-red-500/15 text-red-300 border-red-500/30",
-    claudeNote:
-      "Claude detectó manchas oscuras con brillo iridiscente en superficie — patrón consistente con derrame de petróleo.",
   },
   turbidity: {
-    label: "Turbidez alta",
+    tKey: "turbidity",
+    noteKey: "turbidity_note",
     dot: "bg-orange-400",
-    ring: "ring-orange-400/40",
     chip: "bg-orange-500/15 text-orange-300 border-orange-500/30",
-    claudeNote:
-      "Claude identificó coloración marrón-rojiza atípica en el cauce — sedimentos en suspensión sobre el agua.",
   },
   algal_bloom: {
-    label: "Floración algal",
+    tKey: "algal_bloom",
+    noteKey: "algal_bloom_note",
     dot: "bg-green-500",
-    ring: "ring-green-500/40",
     chip: "bg-green-500/15 text-green-300 border-green-500/30",
-    claudeNote:
-      "Claude detectó manchas verdes brillantes — pico de clorofila típico de eutrofización.",
   },
 };
 
@@ -39,16 +34,18 @@ interface Props {
 }
 
 export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }: Props) {
+  const tAlert = useTranslations("alert");
+  const tContam = useTranslations("contamination");
   const [imgError, setImgError] = useState(false);
-  const meta = TYPE_META[alert.contamination_type] ?? {
-    label: alert.contamination_type,
-    dot: "bg-slate-400",
-    ring: "ring-slate-400/40",
-    chip: "bg-slate-500/15 text-slate-300 border-slate-500/30",
-  };
+
+  const meta = TYPE_META[alert.contamination_type];
+  const label = meta ? tContam(meta.tKey as any) : alert.contamination_type;
+  const claudeNote = meta ? tContam(meta.noteKey as any) : "";
+  const chipCls = meta?.chip ?? "bg-slate-500/15 text-slate-300 border-slate-500/30";
+  const dotCls = meta?.dot ?? "bg-slate-400";
 
   const at = alert.attribution;
-  const detectedAt = alert.detected_at ? new Date(alert.detected_at).toLocaleDateString("es-PE") : "—";
+  const detectedAt = alert.detected_at ? new Date(alert.detected_at).toLocaleDateString() : "—";
 
   return (
     <div
@@ -60,13 +57,13 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
         {!imgError ? (
           <img
             src={`${apiBase}/detect/alerts/${alert.alert_id}/image`}
-            alt="Vista satelital del área"
+            alt={tAlert("alt_satellite")}
             className="w-full h-full object-cover"
             onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 italic">
-            Imagen satelital no disponible
+            {tAlert("image_unavailable")}
           </div>
         )}
         {/* Gradient overlay */}
@@ -81,17 +78,17 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
         {/* Top-left chip */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
           <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${meta.chip}`}
+            className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${chipCls}`}
           >
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${meta.dot} mr-1.5 align-middle`} />
-            {meta.label}
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotCls} mr-1.5 align-middle`} />
+            {label}
           </span>
         </div>
         {/* Close button */}
         <button
           onClick={onClose}
+          aria-label={tAlert("close")}
           className="absolute top-3 right-3 w-7 h-7 rounded-full bg-slate-950/60 hover:bg-slate-900/80 text-slate-300 flex items-center justify-center transition-colors backdrop-blur"
-          aria-label="Cerrar"
         >
           ×
         </button>
@@ -106,20 +103,20 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
         {/* Claude analysis caption */}
         <div className="flex items-start gap-2 -mt-1 mb-1 px-2.5 py-2 rounded-lg bg-teal-500/10 border border-teal-500/25">
           <span className="text-teal-300 text-[11px] font-semibold uppercase tracking-wider flex-shrink-0 mt-0.5">
-            IA
+            {tAlert("claude_label")}
           </span>
           <p className="text-[12px] text-slate-200 leading-snug">
-            {alert.description ?? meta.claudeNote}
+            {alert.description ?? claudeNote}
           </p>
         </div>
 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-slate-100 text-base leading-tight truncate">
-              {at?.operator_name ?? "Operador desconocido"}
+              {at?.operator_name ?? tAlert("unknown_operator")}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {at?.concession_id ? `Concesión ${at.concession_id} · ` : ""}
+              {at?.concession_id ? `${tAlert("concession")} ${at.concession_id} · ` : ""}
               {detectedAt}
             </p>
           </div>
@@ -128,7 +125,7 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
               {(alert.confidence * 100).toFixed(0)}%
             </div>
             <div className="text-[10px] uppercase tracking-wider text-slate-500 mt-0.5">
-              confianza
+              {tAlert("confidence")}
             </div>
           </div>
         </div>
@@ -136,15 +133,15 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
         {/* Quick stats */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <Stat
-            label="Sanciones previas"
-            value={at?.prior_sanctions != null ? at.prior_sanctions.toLocaleString("es-PE") : "—"}
+            label={tAlert("prior_sanctions")}
+            value={at?.prior_sanctions != null ? at.prior_sanctions.toLocaleString() : "—"}
             tone="warn"
           />
           <Stat
-            label="Afectados (30d)"
+            label={tAlert("affected_30d")}
             value={
               alert.predictions?.people_affected_30d
-                ? alert.predictions.people_affected_30d.toLocaleString("es-PE")
+                ? alert.predictions.people_affected_30d.toLocaleString()
                 : "—"
             }
             tone="danger"
@@ -157,7 +154,7 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
           className="w-full mt-1 bg-teal-400 hover:bg-teal-300 active:bg-teal-500 text-slate-950 font-bold py-3 rounded-lg text-sm transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-400/50 ring-1 ring-teal-300/50 flex items-center justify-center gap-2"
           style={{ textShadow: "none" }}
         >
-          Ver dossier completo
+          {tAlert("view_dossier_full")}
           <span aria-hidden className="font-bold">→</span>
         </button>
       </div>

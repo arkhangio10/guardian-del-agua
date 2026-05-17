@@ -190,8 +190,8 @@ def render_pdf(denuncia_text: str, alert_data: dict) -> bytes:
             evidence_hash=evidence_hash,
         )
         return HTML(string=html_content).write_pdf()
-    except (ImportError, OSError):
-        # Windows fallback: pure-Python PDF with reportlab
+    except Exception:
+        # Fallback: pure-Python PDF with reportlab (covers Windows + WeasyPrint runtime errors)
         return _render_pdf_reportlab(denuncia_text, alert_data, evidence_hash)
 
 

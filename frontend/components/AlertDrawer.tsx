@@ -148,6 +148,7 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
                       src={`${apiBase}/detect/alerts/${alert.alert_id}/image`}
                       alt={tAlert("alt_satellite")}
                       className="w-full h-full object-cover"
+                      style={{ filter: "contrast(1.35) saturate(1.5) brightness(1.05)" }}
                       onError={() => setImgError(true)}
                     />
                   ) : (
@@ -271,7 +272,14 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
                     <button
                       onClick={generateDenuncia}
                       disabled={generating || !at}
-                      className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-semibold px-6 py-3 rounded-lg transition-all hover:shadow-glow-teal flex items-center justify-center gap-2"
+                      className="w-full font-bold px-6 py-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        background: "linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)",
+                        color: "#ffffff",
+                        boxShadow: "0 4px 14px rgba(20, 184, 166, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)",
+                        textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+                        border: "1px solid rgba(94, 234, 212, 0.6)",
+                      }}
                     >
                       {generating ? t("generating") : t("generate_denuncia")}
                     </button>

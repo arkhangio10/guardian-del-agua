@@ -59,6 +59,7 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
             src={`${apiBase}/detect/alerts/${alert.alert_id}/image`}
             alt={tAlert("alt_satellite")}
             className="w-full h-full object-cover"
+            style={{ filter: "contrast(1.35) saturate(1.5) brightness(1.05)" }}
             onError={() => setImgError(true)}
           />
         ) : (
@@ -151,8 +152,14 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
         {/* CTA */}
         <button
           onClick={onOpenDrawer}
-          className="w-full mt-1 bg-teal-400 hover:bg-teal-300 active:bg-teal-500 text-slate-950 font-bold py-3 rounded-lg text-sm transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-400/50 ring-1 ring-teal-300/50 flex items-center justify-center gap-2"
-          style={{ textShadow: "none" }}
+          className="w-full mt-1 font-bold py-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2 hover:opacity-90"
+          style={{
+            background: "linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)",
+            color: "#ffffff",
+            boxShadow: "0 4px 14px rgba(20, 184, 166, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)",
+            textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+            border: "1px solid rgba(94, 234, 212, 0.6)",
+          }}
         >
           {tAlert("view_dossier_full")}
           <span aria-hidden className="font-bold">→</span>

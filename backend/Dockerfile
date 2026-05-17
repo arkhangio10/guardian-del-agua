@@ -1,5 +1,6 @@
-# ---- builder stage: install heavy geo/ML deps once ----
-FROM python:3.11-slim AS builder
+# Pin to Bookworm (Debian 12) — Trixie (Debian 13, default since 2025) renamed/removed
+# packages like libgdk-pixbuf2.0-0, libgeos-c1v5, libproj25. Bookworm has all of them.
+FROM python:3.11-slim-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -12,8 +13,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 
-# ---- runtime stage: only runtime libs ----
-FROM python:3.11-slim AS runtime
+# ---- final stage: shared libs only, no -dev headers ----
+FROM python:3.11-slim-bookworm AS runtime
 
 # WeasyPrint + Cairo/Pango runtime (no -dev headers needed)
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -1,6 +1,6 @@
 "use client";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "@/i18n/navigation";
 import { useState, useRef, useEffect, useTransition } from "react";
 import { routing, LOCALE_META, type Locale } from "@/i18n/routing";
 
@@ -28,14 +28,10 @@ export default function LanguageSwitcher() {
       setOpen(false);
       return;
     }
-    // Strip current locale prefix if present, then prepend the new one (unless default)
-    const stripped =
-      pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
-        ? pathname.replace(new RegExp(`^/${locale}`), "") || "/"
-        : pathname;
-    const target = next === routing.defaultLocale ? stripped : `/${next}${stripped === "/" ? "" : stripped}`;
     setOpen(false);
-    startTransition(() => router.replace(target));
+    // next-intl's router.replace handles cookie + prefix automatically.
+    // pathname here is already locale-stripped.
+    startTransition(() => router.replace(pathname, { locale: next }));
   }
 
   return (

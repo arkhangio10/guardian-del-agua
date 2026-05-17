@@ -92,6 +92,17 @@
     "no_attribution": "Sin atribución asignada — ejecutar /attribute primero.",
     "legal_disclaimer": "Documento preliminar. Atribución presunta, sujeta a verificación in situ por la autoridad competente. Requiere firma de representante legal antes de presentación ante OEFA."
   },
+  "lightbox": {
+    "open_lightbox": "Abrir imagen ampliada",
+    "click_to_expand": "Click para ampliar",
+    "reset": "Reset",
+    "confidence": "Confianza",
+    "area_analyzed": "Área analizada",
+    "dimensions": "Dimensiones",
+    "bbox_wgs84": "Bbox WGS84",
+    "anomaly_zone": "Zona analizada",
+    "hint": "Rueda del mouse para zoom · Arrastrá para mover · ESC para cerrar · 0 para reset"
+  },
   "language": {
     "switcher_aria": "Cambiar idioma",
     "es": "Español",

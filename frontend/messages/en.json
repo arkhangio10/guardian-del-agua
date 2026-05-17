@@ -83,6 +83,17 @@
     "no_attribution": "No attribution assigned — run /attribute first.",
     "legal_disclaimer": "Preliminary document. Attribution presumed, subject to on-site verification by the competent authority. Requires signature of an authorized legal representative before submission to OEFA."
   },
+  "lightbox": {
+    "open_lightbox": "Open enlarged image",
+    "click_to_expand": "Click to enlarge",
+    "reset": "Reset",
+    "confidence": "Confidence",
+    "area_analyzed": "Area analyzed",
+    "dimensions": "Dimensions",
+    "bbox_wgs84": "Bbox WGS84",
+    "anomaly_zone": "Analyzed zone",
+    "hint": "Mouse wheel to zoom · Drag to pan · ESC to close · 0 to reset"
+  },
   "language": {
     "switcher_aria": "Change language",
     "es": "Spanish",

@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import SatelliteLightbox from "./SatelliteLightbox";
+import { bboxAreaKm2, bboxSidesKm } from "@/utils/bbox";
 
 const TYPE_META: Record<string, { tKey: string; chip: string; dot: string }> = {
   hydrocarbon: {
@@ -31,9 +33,12 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
   const tAlert = useTranslations("alert");
   const tContam = useTranslations("contamination");
 
+  const tLight = useTranslations("lightbox");
+
   const [alert, setAlert] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [denuncia, setDenuncia] = useState<any>(null);
   const [denunciaError, setDenunciaError] = useState<string | null>(null);
@@ -142,12 +147,19 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
             <div className="p-6 space-y-5">
               {/* Hero: satellite image + operator */}
               <section className="relative rounded-2xl overflow-hidden border border-slate-700/40 bg-slate-900">
-                <div className="aspect-[16/10] relative">
+                <div
+                  className="aspect-[16/10] relative group/img cursor-zoom-in"
+                  onClick={() => {
+                    if (!imgError) setLightboxOpen(true);
+                  }}
+                  role="button"
+                  aria-label={tLight("open_lightbox")}
+                >
                   {!imgError ? (
                     <img
                       src={`${apiBase}/detect/alerts/${alert.alert_id}/image`}
                       alt={tAlert("alt_satellite")}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105"
                       style={{ filter: "contrast(1.35) saturate(1.5) brightness(1.05)" }}
                       onError={() => setImgError(true)}
                     />
@@ -158,6 +170,23 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none" />
                   <div className="absolute inset-4 border border-teal-400/50 rounded-xl pointer-events-none" />
+                  {/* Click-to-expand hint */}
+                  {!imgError && (
+                    <div className="absolute top-4 right-4 px-2.5 py-1 rounded-md bg-slate-950/70 backdrop-blur text-[10px] uppercase tracking-wider text-teal-200 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none">
+                      ⊕ {tLight("click_to_expand")}
+                    </div>
+                  )}
+                  {/* Claude reasoning ribbon */}
+                  {(alert.description || (alert.contamination_type && tContam(`${alert.contamination_type}_note` as any))) && (
+                    <div className="absolute left-4 right-4 bottom-4 flex items-start gap-2 px-3 py-2 rounded-lg glass border border-teal-500/30 pointer-events-none">
+                      <span className="text-[10px] uppercase tracking-wider text-teal-300 font-semibold flex-shrink-0 mt-0.5">
+                        {tAlert("claude_label")}
+                      </span>
+                      <p className="text-[11px] text-slate-100 leading-snug">
+                        {alert.description ?? tContam(`${alert.contamination_type}_note` as any)}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="px-5 pb-5 -mt-14 relative">
@@ -232,6 +261,29 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
                     label={t("image_id")}
                     value={<span className="text-[11px] font-mono">{alert.sentinel_image_id}</span>}
                   />
+                  {(() => {
+                    const area = bboxAreaKm2(alert.sentinel_bbox);
+                    const sides = bboxSidesKm(alert.sentinel_bbox);
+                    return (
+                      <>
+                        {area != null && (
+                          <Row
+                            label={tLight("area_analyzed")}
+                            value={
+                              <span className="text-slate-200">
+                                {area.toLocaleString()} km²
+                                {sides && (
+                                  <span className="text-slate-500 text-[11px] ml-1.5">
+                                    ({sides[0]}×{sides[1]} km)
+                                  </span>
+                                )}
+                              </span>
+                            }
+                          />
+                        )}
+                      </>
+                    );
+                  })()}
                   <Row
                     label={t("bbox")}
                     value={
@@ -325,6 +377,14 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
           )}
         </div>
       </aside>
+
+      {lightboxOpen && alert && (
+        <SatelliteLightbox
+          alert={alert}
+          apiBase={apiBase}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </>
   );
 }

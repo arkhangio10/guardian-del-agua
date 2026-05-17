@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import SatelliteLightbox from "./SatelliteLightbox";
+import { bboxAreaKm2 } from "@/utils/bbox";
 
 const TYPE_META: Record<
   string,
@@ -36,7 +38,10 @@ interface Props {
 export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }: Props) {
   const tAlert = useTranslations("alert");
   const tContam = useTranslations("contamination");
+  const tLight = useTranslations("lightbox");
   const [imgError, setImgError] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const area = bboxAreaKm2(alert.sentinel_bbox);
 
   const meta = TYPE_META[alert.contamination_type];
   const label = meta ? tContam(meta.tKey as any) : alert.contamination_type;
@@ -53,18 +58,32 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
       onClick={(e) => e.stopPropagation()}
     >
       {/* Satellite image */}
-      <div className="relative h-[200px] bg-slate-900 overflow-hidden">
+      <div
+        className="relative h-[200px] bg-slate-900 overflow-hidden group/img cursor-zoom-in"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!imgError) setLightboxOpen(true);
+        }}
+        role="button"
+        aria-label={tLight("open_lightbox")}
+      >
         {!imgError ? (
           <img
             src={`${apiBase}/detect/alerts/${alert.alert_id}/image`}
             alt={tAlert("alt_satellite")}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover/img:scale-105"
             style={{ filter: "contrast(1.35) saturate(1.5) brightness(1.05)" }}
             onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 italic">
             {tAlert("image_unavailable")}
+          </div>
+        )}
+        {/* Hover zoom hint */}
+        {!imgError && (
+          <div className="absolute top-3 right-12 px-2 py-1 rounded-md bg-slate-950/70 backdrop-blur text-[10px] uppercase tracking-wider text-teal-200 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none">
+            ⊕ {tLight("click_to_expand")}
           </div>
         )}
         {/* Gradient overlay */}
@@ -97,6 +116,12 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
         <div className="absolute bottom-2 left-3 text-[10px] uppercase tracking-wider text-teal-300/90 font-mono">
           Sentinel-2 L2A · {alert.sentinel_image_id ?? ""}
         </div>
+        {/* Area badge */}
+        {area != null && (
+          <div className="absolute bottom-2 right-3 text-[10px] uppercase tracking-wider text-slate-300 font-mono bg-slate-950/60 backdrop-blur px-1.5 py-0.5 rounded">
+            {area.toLocaleString()} km²
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -165,6 +190,14 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
           <span aria-hidden className="font-bold">→</span>
         </button>
       </div>
+
+      {lightboxOpen && (
+        <SatelliteLightbox
+          alert={alert}
+          apiBase={apiBase}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }

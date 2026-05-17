@@ -1,4 +1,20 @@
-"""Layer 3 — PREDICT: XGBoost downstream impact prediction."""
+"""Layer 3 — PREDICT: XGBoost downstream impact prediction.
+
+This file was promoted from ml_lab on 2026-05-17. Key changes vs the previous
+version:
+  - Features are now derived from the alert document (bbox + district +
+    attribution) via `layers.feature_extraction.features_from_alert`, not
+    hardcoded constants.
+  - Each prediction ships with bootstrap-derived 90% confidence intervals
+    (P5/P95) stored as a sibling Firestore field `predictions_intervals`.
+  - Feature provenance is stored as a sibling field `feature_provenance` for
+    chain-of-custody citation in the denuncia PDF.
+
+The original ImpactPrediction Pydantic schema is unchanged. See
+`v1/ML_VALIDATION.md` for validation methodology and metrics.
+
+Rollback: predict.py.bak holds the pre-promotion version.
+"""
 from __future__ import annotations
 from pathlib import Path
 
@@ -50,7 +66,6 @@ def build_feature_vector(
 
 
 def estimate_water_sources(bbox: list[float]) -> int:
-    # Estimate based on bbox area — 1 source per ~25 km² in Loreto basin
     lon_span = abs(bbox[2] - bbox[0]) * 111
     lat_span = abs(bbox[3] - bbox[1]) * 111
     area_km2 = lon_span * lat_span
@@ -58,7 +73,6 @@ def estimate_water_sources(bbox: list[float]) -> int:
 
 
 def estimate_economic_damage(people_30d: int, fish_dieoff_pct: float, recovery_days: int) -> int:
-    # Simple: $200/person/month subsistence impact + $5K per recovery day (remediation)
     subsistence = people_30d * 200
     remediation = recovery_days * 5000
     return subsistence + remediation
@@ -79,19 +93,13 @@ async def predict_impact_endpoint(alert_id: str):
     if not attribution:
         raise HTTPException(400, "Alert must be attributed before prediction")
 
-    contamination_type = data.get("contamination_type", "hydrocarbon")
     bbox = data.get("sentinel_bbox", [-76.0, -4.0, -75.0, -3.0])
 
-    # Default river conditions for NorPeruano / Loreto
-    X = build_feature_vector(
-        contamination_type=contamination_type,
-        volume_barrels=800.0,
-        river_flow_m3s=1200.0,
-        distance_km=15.0,
-        pop_density=8.5,
-        biodiversity_index=0.82,
-        season="wet",
-    )
+    # Derive features from the alert document with documented provenance for
+    # chain of custody. Previously these were hardcoded constants.
+    from layers.feature_extraction import features_from_alert
+    feat = features_from_alert(data, attribution)
+    X = feat["features"]
 
     try:
         model = get_model()
@@ -116,9 +124,28 @@ async def predict_impact_endpoint(alert_id: str):
         economic_damage_usd=estimate_economic_damage(people_30d, fish_pct, recovery),
     )
 
-    db.collection("alerts").document(alert_id).update({
+    # Bootstrap 90% confidence intervals — optional sibling field on the
+    # Firestore document so the ImpactPrediction Pydantic schema stays untouched.
+    intervals: dict | None = None
+    try:
+        from layers.predict_lib import load_bootstrap_ensemble, predict_with_intervals
+        boot_path = ML_DIR / "impact_model_bootstrap.pkl"
+        if boot_path.exists():
+            boot = load_bootstrap_ensemble(boot_path)
+            ci_result = predict_with_intervals(boot, X)
+            intervals = ci_result["intervals"]
+    except Exception as exc:
+        print(f"[WARN] bootstrap CI skipped: {exc}")
+
+    update_payload: dict = {
         "predictions": prediction.model_dump(),
         "status": "predicted",
-    })
+        "feature_provenance": feat.get("_provenance", {}),
+        "derived_inputs": feat.get("_derived_inputs", {}),
+    }
+    if intervals is not None:
+        update_payload["predictions_intervals"] = intervals
+
+    db.collection("alerts").document(alert_id).update(update_payload)
 
     return prediction.model_dump()

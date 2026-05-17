@@ -1,0 +1,139 @@
+{
+  "features": [
+    "contamination_type_enc",
+    "volume_barrels",
+    "river_flow_m3s",
+    "distance_km",
+    "pop_density_per_km2",
+    "biodiversity_index",
+    "season_enc"
+  ],
+  "targets": [
+    "people_affected_7d",
+    "people_affected_30d",
+    "fish_dieoff_pct",
+    "recovery_days"
+  ],
+  "importance_by_target": {
+    "people_affected_7d": [
+      {
+        "feature": "volume_barrels",
+        "importance": 0.8272093534469604
+      },
+      {
+        "feature": "river_flow_m3s",
+        "importance": 0.057642556726932526
+      },
+      {
+        "feature": "pop_density_per_km2",
+        "importance": 0.05057808756828308
+      },
+      {
+        "feature": "distance_km",
+        "importance": 0.026572762057185173
+      },
+      {
+        "feature": "biodiversity_index",
+        "importance": 0.01474575512111187
+      },
+      {
+        "feature": "season_enc",
+        "importance": 0.012423931621015072
+      },
+      {
+        "feature": "contamination_type_enc",
+        "importance": 0.010827523656189442
+      }
+    ],
+    "people_affected_30d": [
+      {
+        "feature": "volume_barrels",
+        "importance": 0.829203724861145
+      },
+      {
+        "feature": "river_flow_m3s",
+        "importance": 0.06357531249523163
+      },
+      {
+        "feature": "pop_density_per_km2",
+        "importance": 0.05051465332508087
+      },
+      {
+        "feature": "distance_km",
+        "importance": 0.02320307120680809
+      },
+      {
+        "feature": "biodiversity_index",
+        "importance": 0.015185621567070484
+      },
+      {
+        "feature": "season_enc",
+        "importance": 0.010474061593413353
+      },
+      {
+        "feature": "contamination_type_enc",
+        "importance": 0.007843551225960255
+      }
+    ],
+    "fish_dieoff_pct": [
+      {
+        "feature": "contamination_type_enc",
+        "importance": 0.8140537738800049
+      },
+      {
+        "feature": "volume_barrels",
+        "importance": 0.16879992187023163
+      },
+      {
+        "feature": "distance_km",
+        "importance": 0.008307203650474548
+      },
+      {
+        "feature": "biodiversity_index",
+        "importance": 0.003053673543035984
+      },
+      {
+        "feature": "river_flow_m3s",
+        "importance": 0.002535304520279169
+      },
+      {
+        "feature": "pop_density_per_km2",
+        "importance": 0.0018777245422825217
+      },
+      {
+        "feature": "season_enc",
+        "importance": 0.0013723827432841063
+      }
+    ],
+    "recovery_days": [
+      {
+        "feature": "volume_barrels",
+        "importance": 0.5406673550605774
+      },
+      {
+        "feature": "contamination_type_enc",
+        "importance": 0.41519495844841003
+      },
+      {
+        "feature": "distance_km",
+        "importance": 0.017813941463828087
+      },
+      {
+        "feature": "season_enc",
+        "importance": 0.008015145547688007
+      },
+      {
+        "feature": "biodiversity_index",
+        "importance": 0.0077538699842989445
+      },
+      {
+        "feature": "river_flow_m3s",
+        "importance": 0.005322827957570553
+      },
+      {
+        "feature": "pop_density_per_km2",
+        "importance": 0.005231836345046759
+      }
+    ]
+  }
+}

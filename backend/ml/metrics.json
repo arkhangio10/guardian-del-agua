@@ -1,0 +1,112 @@
+{
+  "n_samples": 3490,
+  "n_features": 7,
+  "n_targets": 4,
+  "n_folds": 5,
+  "n_bootstrap": 20,
+  "random_seed": 42,
+  "xgb_params": {
+    "n_estimators": 200,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "random_state": 42,
+    "verbosity": 0,
+    "n_jobs": 1
+  },
+  "cv": {
+    "xgboost": {
+      "model": "XGBoost",
+      "folds": 5,
+      "per_target": {
+        "people_affected_7d": {
+          "mae_mean": 9.628930697400111,
+          "mae_std": 1.0646057069177073,
+          "r2_mean": 0.9902338906703505,
+          "r2_std": 0.0017944213137916496
+        },
+        "people_affected_30d": {
+          "mae_mean": 28.846990483538132,
+          "mae_std": 2.278101239633939,
+          "r2_mean": 0.9903041691261436,
+          "r2_std": 0.0025828719653125786
+        },
+        "fish_dieoff_pct": {
+          "mae_mean": 1.4275692818431254,
+          "mae_std": 0.036205366124346126,
+          "r2_mean": 0.9924652833804904,
+          "r2_std": 0.0011973581999587784
+        },
+        "recovery_days": {
+          "mae_mean": 4.469372749875132,
+          "mae_std": 0.2710350505214748,
+          "r2_mean": 0.988645965663296,
+          "r2_std": 0.003194670702779444
+        }
+      }
+    }
+  },
+  "baseline_comparison": {
+    "mean": {
+      "model": "Mean baseline",
+      "folds": 5,
+      "per_target": {
+        "people_affected_7d": {
+          "mae_mean": 138.82535775568346,
+          "mae_std": 8.138915862397395,
+          "r2_mean": -0.005334166098795512,
+          "r2_std": 0.004609021253814199
+        },
+        "people_affected_30d": {
+          "mae_mean": 428.15680597860444,
+          "mae_std": 24.69828622060404,
+          "r2_mean": -0.0051744902132663025,
+          "r2_std": 0.00412690895544903
+        },
+        "fish_dieoff_pct": {
+          "mae_mean": 13.59478637285408,
+          "mae_std": 1.083064288026993,
+          "r2_mean": -0.004028980085753675,
+          "r2_std": 0.00457122701883194
+        },
+        "recovery_days": {
+          "mae_mean": 35.19673894303002,
+          "mae_std": 2.2872597299135338,
+          "r2_mean": -0.005661595880603309,
+          "r2_std": 0.006998714817549237
+        }
+      }
+    },
+    "linear": {
+      "model": "Linear baseline",
+      "folds": 5,
+      "per_target": {
+        "people_affected_7d": {
+          "mae_mean": 52.90034201930935,
+          "mae_std": 5.008111680560534,
+          "r2_mean": 0.7759403259340629,
+          "r2_std": 0.03326239110130732
+        },
+        "people_affected_30d": {
+          "mae_mean": 162.45049196841006,
+          "mae_std": 15.29791814841833,
+          "r2_mean": 0.7813001294648091,
+          "r2_std": 0.030218430605459052
+        },
+        "fish_dieoff_pct": {
+          "mae_mean": 6.17684978413166,
+          "mae_std": 0.3566230132079839,
+          "r2_mean": 0.8104457969820642,
+          "r2_std": 0.013732259476842408
+        },
+        "recovery_days": {
+          "mae_mean": 6.597908099215095,
+          "mae_std": 0.4254310507999903,
+          "r2_mean": 0.9664577940866559,
+          "r2_std": 0.004465063649308416
+        }
+      }
+    }
+  }
+}

@@ -121,11 +121,13 @@ yarn-error.log*
 # ----------------------------------------------------------------------------
 # ML artifacts y datos sensibles
 # ----------------------------------------------------------------------------
-# Modelos entrenados — se regeneran con ml/train.py si hace falta
-backend/ml/*.pkl
+# Modelos entrenados — el modelo principal SÍ va al repo (Railway lo necesita
+# para servir predicciones reales). El bootstrap ensemble (25MB) queda excluido
+# por tamaño — predict.py degrada graceful sin él (skipea intervalos P5/P95).
 backend/ml/*.joblib
 backend/ml/*.h5
 backend/ml/*.onnx
+backend/ml/impact_model_bootstrap.pkl
 
 # Backups de CSV — solo el csv "oficial" va al repo
 backend/ml/*_backup.csv

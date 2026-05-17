@@ -5,11 +5,18 @@
 
 ## TL;DR
 
-We replaced a degenerate model (trained on 698 identical rows) with one trained
-on 2,880 diverse calibrated samples. The new model achieves **R² ≥ 0.97** on
-all four impact targets via 5-fold cross-validation, beats a linear baseline by
-**74–88% MAE**, and ships with **90% bootstrap confidence intervals** so every
-prediction in the denuncia carries an honest uncertainty band.
+Replaced a degenerate model (trained on 698 identical rows) with one trained on
+3,490 diverse rows derived from 698 real OEFA RUIAS sanctions (296 unique
+expedientes) in Loreto/Hidrocarburos. The new model achieves **R² ≥ 0.983** on
+all four impact targets via **GroupKFold cross-validation by `_expediente`**
+(i.e., the model is tested on expedientes it never saw during training,
+eliminating leakage between jittered copies of the same record). Beats a linear
+baseline by **32–82% MAE**, and ships with 90% bootstrap confidence intervals.
+
+**The R² alto NO mide capacidad predictiva contra ground-truth real** — OEFA no
+publica counts por incidente. Mide cuán bien XGBoost aproxima nuestra fórmula
+físico-económica calibrada (Oxfam 2019 + Estudio Salud Gob.Perú 2019 +
+Cuninico/Mongabay + MDPI Toxics 2024). Ver sección "Honesty guardrails" abajo.
 
 ## Architecture
 
@@ -26,41 +33,46 @@ prediction in the denuncia carries an honest uncertainty band.
 
 | Property | Value |
 |----------|-------|
-| Samples | 2,880 |
+| Samples | 3,490 (1 verbatim + 4 jittered copies per real RUIAS record) |
+| Real expedientes | 698 records → 296 unique `_expediente` values |
 | Features | 7 (contamination_type, volume, river_flow, distance, density, biodiversity, season) |
 | Targets | 4 (people_7d, people_30d, fish_dieoff_pct, recovery_days) |
-| Source | Calibrated synthetic; see `data/DATA_SOURCES.md` for full provenance |
-| Calibration | OEFA UIT scale + SENAMHI flow + INEI 2017 census + RAISG biodiversity + Oxfam 2019 impact patterns |
+| Source inputs | 100% real OEFA RUIAS (`datosabiertos.gob.pe`, descargado 2026-05-17) |
+| Source labels | Modelados via `geo_utils.estimate_impacts` (formula); OEFA no publica counts |
+| Calibration | OEFA UIT scale + SENAMHI flow + INEI 2017 census + RAISG biodiversity + Oxfam 2019 impact patterns + Estudio Salud Gob.Perú 2019 + Cuninico/Mongabay + MDPI Toxics 2024 |
 
-The CSV is reproducible: `python src/rebuild_training_data.py` (seed=42) yields
-the identical dataset every run.
+CSV reproducible: `python src/rebuild_training_data_real.py` (seed=42).
 
-## Cross-validated performance (5-fold, n=2,880)
+## Cross-validated performance — HONEST (GroupKFold by `_expediente`)
 
 | Target | XGBoost MAE | Linear MAE | Mean MAE | XGB vs Linear | XGB R² |
 |--------|-------------|------------|----------|---------------|--------|
-| `people_affected_7d` | **33.8 ± 1.2** | 133.8 ± 4.1 | 252.7 ± 5.6 | **74.8% lower** | 0.974 ± 0.002 |
-| `people_affected_30d` | **102.9 ± 3.5** | 417.6 ± 11.7 | 783.5 ± 15.7 | **75.4% lower** | 0.975 ± 0.002 |
-| `fish_dieoff_pct` | **2.76 ± 0.13** | 22.9 ± 0.4 | 25.5 ± 0.3 | **88.0% lower** | 0.985 ± 0.001 |
-| `recovery_days` | **8.6 ± 0.3** | 43.7 ± 1.0 | 65.6 ± 1.0 | **80.3% lower** | 0.978 ± 0.001 |
+| `people_affected_7d` | **9.55 ± 2.52** | 54.65 ± 6.42 | 138.90 ± 19.69 | **82.5% lower** | 0.984 ± 0.015 |
+| `people_affected_30d` | **29.98 ± 8.17** | 168.27 ± 20.79 | 428.39 ± 61.87 | **82.2% lower** | 0.983 ± 0.018 |
+| `fish_dieoff_pct` | **1.41 ± 0.04** | 6.31 ± 0.32 | 13.60 ± 1.38 | **77.7% lower** | 0.993 ± 0.001 |
+| `recovery_days` | **4.49 ± 0.54** | 6.61 ± 0.89 | 35.33 ± 7.48 | **32.1% lower** | 0.985 ± 0.008 |
 
-All XGBoost std deviations are < 4% of the mean — predictions are stable across
-folds.
+**Lectura honesta:** GroupKFold(5) sobre 296 expedientes únicos. Cada fold testea
+en ~59 expedientes que el modelo nunca vio en training. R²=0.984 mide cuán bien
+XGBoost aproxima la fórmula calibrada a través del espacio de features — no es
+"memorización de filas vistas". Compárese con `metrics.json` (KFold ungrouped,
+R²=0.99); la diferencia de ~0.6 puntos es evidencia de que el modelo aprendió
+estructura, no IDs.
 
-The Mean baseline has **negative R²** on every target, confirming the targets
-have non-trivial signal. Linear regression captures ~68% of variance for people
-counts but only **19% for fish_dieoff_pct** — that's because fish mortality is
-driven primarily by contamination type (categorical), which linear models
-cannot represent. XGBoost handles this naturally.
+Mean baseline R² ≈ 0 confirma que los targets tienen señal estructurada.
+Linear baseline captura ~74-96% de la varianza; XGBoost agrega valor en
+interacciones no-lineales especialmente en `fish_dieoff_pct` donde
+`contamination_type` (categorial) domina y los modelos lineales no pueden
+representarlo.
 
 ## Feature importance (final model)
 
 | Target | Top driver | Importance |
 |--------|------------|------------|
-| `people_affected_7d` | volume_barrels | 67.9% |
-| `people_affected_30d` | volume_barrels | 68.0% |
-| `fish_dieoff_pct` | contamination_type | **90.5%** |
-| `recovery_days` | contamination_type | 65.9% |
+| `people_affected_7d` | volume_barrels | 82.7% |
+| `people_affected_30d` | volume_barrels | 82.9% |
+| `fish_dieoff_pct` | contamination_type | **81.4%** |
+| `recovery_days` | volume_barrels (54.1%) + contamination_type (41.5%) | mix |
 
 These rankings match domain expectation: spill volume drives human reach;
 contamination chemistry drives ecological damage. Full per-feature breakdown
@@ -125,14 +137,39 @@ Every claim in the denuncia is framed as **"presunto, sujeto a verificación
 in situ"** (presumed, subject to field verification). The PDF carries a
 methodology disclaimer and a chain-of-custody block citing each input source.
 
-## Pitch lines
+## Pitch lines (defendibles ante jurado técnico hostil)
 
-- "5-fold cross-validated: MAE = X ± Y on 4 targets, R² ≥ 0.97 across the board."
-- "Beats linear baseline by 75–88% MAE — non-linear interactions are real,
-  not artifacts of overfitting."
-- "Every prediction ships with a 90% confidence interval and feature attribution."
-- "All input features traceable to documented sources: Sentinel-2, SENAMHI
-  calibration, INEI 2017, RAISG."
-- "Isolated ML lab with reproducible test suite (`pytest tests/test_ml.py` — 8
-  tests, < 3 s). Only validated artifacts promoted to production via
-  `promote.py`."
+**Líneas seguras:**
+- "GroupKFold(5) sobre 296 expedientes únicos: R²=0.984 — el modelo generaliza
+  a expedientes que nunca vio en training."
+- "Beats linear baseline by 32–82% MAE — confirma que XGBoost agrega valor sobre
+  modelos lineales en este espacio de features."
+- "Every prediction ships with feature provenance and `presunto, sujeto a
+  verificación in situ` legal framing."
+- "All input features traceable to documented sources: Sentinel-2, SENAMHI,
+  INEI 2017, RAISG, OSINERGMIN. Cited per-feature in the denuncia."
+- "Isolated ML lab with reproducible test suite (`pytest tests/test_ml.py` —
+  8 tests, < 3 s). Seed=42 in todo el pipeline."
+
+**Líneas que NO uses sin contexto:**
+- ❌ "R²=0.99 prueba que el modelo predice impacto real" (cierra el ciclo
+  modelo-vs-fórmula, no modelo-vs-realidad)
+- ❌ "Validado contra OEFA records reales" (los INPUTS son reales; los OUTPUTS
+  son modelados — OEFA no publica counts por incidente)
+- ❌ "Sin sesgo por subgrupo" (esa verificación mide consistencia modelo-vs-fórmula,
+  no sesgo contra realidad)
+
+**Respuesta a "¿no es R² alto señal de overfit?":**
+> "GroupKFold con grouping por expediente da R²=0.984 — el modelo se evalúa en
+> expedientes que no estaban en training. Si fuera overfit por leakage, el R²
+> habría caído mucho. El R² alto refleja que los labels son una función calibrada
+> determinística de los features (Oxfam 2019 + 3 fuentes adicionales), y XGBoost
+> es muy bueno aproximando funciones suaves. Mide consistencia con expertise
+> documentado, no capacidad predictiva real — esa validación requiere peritos
+> ambientales y es trabajo post-hackathon."
+
+**Respuesta a "Cuninico tomó 11 años, tu cap es 365 días":**
+> "Correcto — para Cuninico nuestro modelo predice 219 días. La realidad de
+> 11+ años incluye dilación procesal, no solo daño físico-ecológico. Modelamos
+> impacto ecológico, no tiempos de litigación. Este es el caso documentado
+> con mayor brecha en nuestra validation: lo declaramos explícitamente."

@@ -1,0 +1,116 @@
+{
+  "n_samples": 3490,
+  "n_groups": 296,
+  "n_features": 7,
+  "n_targets": 4,
+  "n_folds": 5,
+  "random_seed": 42,
+  "xgb_params": {
+    "n_estimators": 250,
+    "max_depth": 4,
+    "learning_rate": 0.036,
+    "subsample": 0.82,
+    "colsample_bytree": 0.95,
+    "random_state": 42,
+    "verbosity": 0,
+    "n_jobs": 1
+  },
+  "cv": {
+    "xgboost": {
+      "model": "XGBoost",
+      "folds": 5,
+      "cv_strategy": "GroupKFold by _expediente",
+      "per_target": {
+        "people_affected_7d": {
+          "mae_mean": 9.546447100162016,
+          "mae_std": 2.521099526814273,
+          "r2_mean": 0.9841448501112845,
+          "r2_std": 0.01497475265359871
+        },
+        "people_affected_30d": {
+          "mae_mean": 29.984032078334263,
+          "mae_std": 8.17091692332793,
+          "r2_mean": 0.9827338264647782,
+          "r2_std": 0.017652115352905298
+        },
+        "fish_dieoff_pct": {
+          "mae_mean": 1.405112278288462,
+          "mae_std": 0.03701392788033268,
+          "r2_mean": 0.9925177642702925,
+          "r2_std": 0.0011960417536696704
+        },
+        "recovery_days": {
+          "mae_mean": 4.485870630309369,
+          "mae_std": 0.5368564723645813,
+          "r2_mean": 0.9852570466962705,
+          "r2_std": 0.007712651570333552
+        }
+      }
+    }
+  },
+  "baseline_comparison": {
+    "linear": {
+      "model": "Linear baseline",
+      "folds": 5,
+      "cv_strategy": "GroupKFold by _expediente",
+      "per_target": {
+        "people_affected_7d": {
+          "mae_mean": 54.646012598167616,
+          "mae_std": 6.4216480192626655,
+          "r2_mean": 0.7336370652020021,
+          "r2_std": 0.10513236466341576
+        },
+        "people_affected_30d": {
+          "mae_mean": 168.2711008027175,
+          "mae_std": 20.787530526584145,
+          "r2_mean": 0.7401283816114,
+          "r2_std": 0.09746863203299627
+        },
+        "fish_dieoff_pct": {
+          "mae_mean": 6.307625491386829,
+          "mae_std": 0.31816108360150963,
+          "r2_mean": 0.8026828038613688,
+          "r2_std": 0.02661809328405339
+        },
+        "recovery_days": {
+          "mae_mean": 6.613306699730932,
+          "mae_std": 0.8851382890086881,
+          "r2_mean": 0.9582844532343999,
+          "r2_std": 0.03874937474636387
+        }
+      }
+    },
+    "mean": {
+      "model": "Mean baseline",
+      "folds": 5,
+      "cv_strategy": "GroupKFold by _expediente",
+      "per_target": {
+        "people_affected_7d": {
+          "mae_mean": 138.89574542944771,
+          "mae_std": 19.6873952697208,
+          "r2_mean": -0.01721886032112927,
+          "r2_std": 0.017778359780969324
+        },
+        "people_affected_30d": {
+          "mae_mean": 428.3907509059071,
+          "mae_std": 61.86826148551447,
+          "r2_mean": -0.017941331632568815,
+          "r2_std": 0.018625237366065927
+        },
+        "fish_dieoff_pct": {
+          "mae_mean": 13.601542982563833,
+          "mae_std": 1.3788168811081545,
+          "r2_mean": -0.004871698314339934,
+          "r2_std": 0.0025233830196834213
+        },
+        "recovery_days": {
+          "mae_mean": 35.330207176214955,
+          "mae_std": 7.476521501268148,
+          "r2_mean": -0.024361937068793128,
+          "r2_std": 0.02300836565307747
+        }
+      }
+    }
+  },
+  "note": "These metrics use GroupKFold(n_splits=5) with groups=_expediente. Compared to the leaky KFold(shuffle=True) results in metrics.json, these are the HONEST generalisation numbers: the model is tested on expedientes it has never seen during training, eliminating leakage between the 1 verbatim + 4 jittered copies of each real RUIAS record."
+}

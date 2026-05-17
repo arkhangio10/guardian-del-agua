@@ -30,6 +30,9 @@ WORKDIR /app
 COPY . .
 
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
 EXPOSE 8080
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
+# Shell form so $PORT expands at runtime (Railway/Cloud Run assign dynamic ports).
+# Fallback to 8080 if $PORT isn't set (local docker run).
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import maplibregl, { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 const TYPE_COLOR: Record<string, string> = {
@@ -24,6 +24,48 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
+const SATELLITE_STYLE: StyleSpecification = {
+  version: 8,
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  sources: {
+    "esri-imagery": {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution:
+        "Imagery © Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community",
+      maxzoom: 19,
+    },
+    "esri-reference": {
+      type: "raster",
+      tiles: [
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      maxzoom: 13,
+    },
+  },
+  layers: [
+    { id: "imagery", type: "raster", source: "esri-imagery" },
+    {
+      id: "imagery-darken",
+      type: "background",
+      paint: {
+        "background-color": "#050b14",
+        "background-opacity": 0.32,
+      },
+    },
+    {
+      id: "reference",
+      type: "raster",
+      source: "esri-reference",
+      paint: { "raster-opacity": 0.75 },
+    },
+  ],
+};
+
 export default function Map({ alerts, selectedId, onSelect }: Props) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,12 +76,17 @@ export default function Map({ alerts, selectedId, onSelect }: Props) {
 
     mapRef.current = new maplibregl.Map({
       container: containerRef.current,
-      style: process.env.NEXT_PUBLIC_MAPLIBRE_STYLE ?? "https://demotiles.maplibre.org/style.json",
-      center: [-76.0, -4.2],
-      zoom: 6,
+      style: SATELLITE_STYLE,
+      center: [-75.5, -4.2],
+      zoom: 6.2,
+      attributionControl: false,
     });
 
-    mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
+    mapRef.current.addControl(
+      new maplibregl.AttributionControl({ compact: true }),
+      "bottom-right"
+    );
+    mapRef.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
   }, []);
 
   useEffect(() => {
@@ -55,32 +102,55 @@ export default function Map({ alerts, selectedId, onSelect }: Props) {
       const color = TYPE_COLOR[alert.contamination_type] ?? "#94a3b8";
       const isSelected = alert.alert_id === selectedId;
 
-      const el = document.createElement("div");
-      el.style.cssText = `
-        width: ${isSelected ? 20 : 14}px;
-        height: ${isSelected ? 20 : 14}px;
-        border-radius: 50%;
-        background: ${color};
-        border: 2px solid ${isSelected ? "white" : "rgba(255,255,255,0.4)"};
-        cursor: pointer;
-        transition: all 0.2s;
-        box-shadow: 0 0 ${isSelected ? 12 : 6}px ${color}80;
-      `;
+      const root = document.createElement("div");
+      root.className = `gda-marker ${isSelected ? "gda-marker--selected" : ""}`;
+      root.style.color = color;
 
-      const popup = new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(
-        `<div style="color:#1a1a1a;font-size:12px;padding:4px;">
-          <strong>${alert.attribution?.operator_name ?? "Detectando..."}</strong><br/>
-          ${alert.contamination_type} · ${(alert.confidence * 100).toFixed(0)}% confianza<br/>
-          ${alert.predictions ? `${alert.predictions.people_affected_30d?.toLocaleString("es-PE")} afectados` : ""}
+      const ripple = document.createElement("div");
+      ripple.className = "gda-marker__ripple";
+      root.appendChild(ripple);
+
+      const dot = document.createElement("div");
+      dot.className = "gda-marker__dot";
+      dot.style.background = color;
+      root.appendChild(dot);
+
+      const operator = alert.attribution?.operator_name ?? "Detectando…";
+      const popup = new maplibregl.Popup({
+        offset: 16,
+        closeButton: false,
+        className: "gda-popup",
+      }).setHTML(
+        `<div style="min-width:160px;">
+          <div style="font-weight:600;color:#e2e8f0;margin-bottom:2px;">${operator}</div>
+          <div style="color:#94a3b8;font-size:11px;">
+            ${alert.contamination_type} · ${(alert.confidence * 100).toFixed(0)}% confianza
+          </div>
+          ${
+            alert.predictions
+              ? `<div style="color:#fca5a5;font-size:11px;margin-top:2px;">${alert.predictions.people_affected_30d?.toLocaleString(
+                  "es-PE"
+                )} afectados</div>`
+              : ""
+          }
         </div>`
       );
 
-      const marker = new maplibregl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: root })
         .setLngLat([lon, lat])
         .setPopup(popup)
         .addTo(mapRef.current!);
 
-      el.addEventListener("click", () => onSelect(alert.alert_id));
+      root.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onSelect(alert.alert_id);
+        if (mapRef.current) {
+          mapRef.current.flyTo({ center: [lon, lat], zoom: Math.max(mapRef.current.getZoom(), 8), speed: 0.8 });
+        }
+      });
+      root.addEventListener("mouseenter", () => marker.togglePopup());
+      root.addEventListener("mouseleave", () => marker.togglePopup());
+
       markersRef.current.push(marker);
     });
   }, [alerts, selectedId, onSelect]);

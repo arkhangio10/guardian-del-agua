@@ -8,12 +8,27 @@ from uuid import uuid4
 import anthropic
 import httpx
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
 
 from config import settings
 from models.alert import Alert
 
 router = APIRouter()
+
+# In-memory cache for Sentinel-2 thumbnails: alert_id -> (bytes, expires_at)
+_image_cache: dict[str, tuple[bytes, datetime]] = {}
+_IMAGE_CACHE_TTL = timedelta(hours=1)
+
+
+def _esri_export_url(bbox: list[float], size: int = 512) -> str:
+    """Free ESRI World Imagery export — no auth needed. Used as fallback."""
+    lon_min, lat_min, lon_max, lat_max = bbox
+    return (
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/"
+        f"export?bbox={lon_min},{lat_min},{lon_max},{lat_max}"
+        f"&bboxSR=4326&imageSR=4326&size={size},{size}&format=png&f=image"
+    )
 
 SENTINEL_AUTH_URL = (
     "https://services.sentinel-hub.com/auth/realms/main/protocol/openid-connect/token"
@@ -229,3 +244,54 @@ async def get_alert(alert_id: str):
     if not doc.exists:
         raise HTTPException(404, f"Alert {alert_id} not found")
     return doc.to_dict()
+
+
+@router.get("/alerts/{alert_id}/image")
+async def get_alert_image(alert_id: str):
+    """
+    Return a satellite image of the alert's bbox.
+    - If alert.satellite_image_url is set in DB → redirect to that URL
+    - Else if Sentinel Hub credentials configured → fetch & return Sentinel-2 PNG (real evidence)
+    - Else → redirect to free ESRI World Imagery export of the bbox (fallback)
+    """
+    cached = _image_cache.get(alert_id)
+    if cached and datetime.now(timezone.utc) < cached[1]:
+        return Response(content=cached[0], media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
+
+    from db import get_db
+    db = get_db()
+    doc = db.collection("alerts").document(alert_id).get()
+    if not doc.exists:
+        raise HTTPException(404, f"Alert {alert_id} not found")
+    data = doc.to_dict()
+
+    if data.get("satellite_image_url"):
+        return RedirectResponse(data["satellite_image_url"], status_code=302)
+
+    bbox = data.get("sentinel_bbox")
+    if not bbox or len(bbox) != 4:
+        raise HTTPException(400, "Alert has no valid bbox")
+
+    if settings.sentinel_hub_client_id and settings.sentinel_hub_client_secret:
+        try:
+            image_id = data.get("sentinel_image_id", "")
+            date_str = ""
+            for part in image_id.split("_"):
+                if len(part) == 10 and part[4] == "-":
+                    date_str = part
+                    break
+                if len(part) == 8 and part.isdigit():
+                    date_str = f"{part[:4]}-{part[4:6]}-{part[6:8]}"
+                    break
+            if not date_str:
+                detected = data.get("detected_at", "")
+                date_str = detected[:10] if detected else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+            png_bytes = await fetch_sentinel_image(bbox, date_str)
+            _image_cache[alert_id] = (png_bytes, datetime.now(timezone.utc) + _IMAGE_CACHE_TTL)
+            return Response(content=png_bytes, media_type="image/png",
+                            headers={"Cache-Control": "public, max-age=3600"})
+        except Exception as e:
+            print(f"[WARN] Sentinel Hub fetch failed for {alert_id}: {e} — falling back to ESRI", flush=True)
+
+    return RedirectResponse(_esri_export_url(bbox), status_code=302)

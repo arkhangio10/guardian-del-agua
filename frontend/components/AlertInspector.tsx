@@ -1,24 +1,33 @@
 "use client";
 import { useState } from "react";
 
-const TYPE_META: Record<string, { label: string; dot: string; ring: string; chip: string }> = {
+const TYPE_META: Record<
+  string,
+  { label: string; dot: string; ring: string; chip: string; claudeNote: string }
+> = {
   hydrocarbon: {
     label: "Hidrocarburos",
     dot: "bg-red-500",
     ring: "ring-red-500/40",
     chip: "bg-red-500/15 text-red-300 border-red-500/30",
+    claudeNote:
+      "Claude detectó manchas oscuras con brillo iridiscente en superficie — patrón consistente con derrame de petróleo.",
   },
   turbidity: {
     label: "Turbidez alta",
     dot: "bg-orange-400",
     ring: "ring-orange-400/40",
     chip: "bg-orange-500/15 text-orange-300 border-orange-500/30",
+    claudeNote:
+      "Claude identificó coloración marrón-rojiza atípica en el cauce — sedimentos en suspensión sobre el agua.",
   },
   algal_bloom: {
     label: "Floración algal",
     dot: "bg-green-500",
     ring: "ring-green-500/40",
     chip: "bg-green-500/15 text-green-300 border-green-500/30",
+    claudeNote:
+      "Claude detectó manchas verdes brillantes — pico de clorofila típico de eutrofización.",
   },
 };
 
@@ -94,6 +103,16 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
 
       {/* Body */}
       <div className="p-4 space-y-3">
+        {/* Claude analysis caption */}
+        <div className="flex items-start gap-2 -mt-1 mb-1 px-2.5 py-2 rounded-lg bg-teal-500/10 border border-teal-500/25">
+          <span className="text-teal-300 text-[11px] font-semibold uppercase tracking-wider flex-shrink-0 mt-0.5">
+            IA
+          </span>
+          <p className="text-[12px] text-slate-200 leading-snug">
+            {alert.description ?? meta.claudeNote}
+          </p>
+        </div>
+
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-slate-100 text-base leading-tight truncate">
@@ -135,10 +154,11 @@ export default function AlertInspector({ alert, apiBase, onClose, onOpenDrawer }
         {/* CTA */}
         <button
           onClick={onOpenDrawer}
-          className="w-full mt-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-semibold py-2.5 rounded-lg text-sm transition-all hover:shadow-glow-teal flex items-center justify-center gap-2"
+          className="w-full mt-1 bg-teal-400 hover:bg-teal-300 active:bg-teal-500 text-slate-950 font-bold py-3 rounded-lg text-sm transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-400/50 ring-1 ring-teal-300/50 flex items-center justify-center gap-2"
+          style={{ textShadow: "none" }}
         >
           Ver dossier completo
-          <span aria-hidden>→</span>
+          <span aria-hidden className="font-bold">→</span>
         </button>
       </div>
     </div>

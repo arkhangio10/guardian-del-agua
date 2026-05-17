@@ -92,7 +92,15 @@
     "dimensions": "Dimensiones",
     "bbox_wgs84": "Bbox WGS84",
     "anomaly_zone": "Zona analizada",
-    "hint": "Rueda del mouse para zoom · Arrastrá para mover · ESC para cerrar · 0 para reset"
+    "hint": "Rueda del mouse para zoom · Arrastrá para mover · ESC para cerrar · 0 para reset",
+    "band_label": "Banda:",
+    "band_unavailable": "Requiere Sentinel Hub configurado",
+    "compare_off": "Comparar antes/después",
+    "compare_on": "Comparando",
+    "before": "Antes",
+    "after": "Después",
+    "compare_mode_active": "Comparación temporal activa",
+    "compare_hint": "Arrastrá el control para revelar el antes vs. después"
   },
   "language": {
     "switcher_aria": "Cambiar idioma",

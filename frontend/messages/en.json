@@ -92,7 +92,15 @@
     "dimensions": "Dimensions",
     "bbox_wgs84": "Bbox WGS84",
     "anomaly_zone": "Analyzed zone",
-    "hint": "Mouse wheel to zoom · Drag to pan · ESC to close · 0 to reset"
+    "hint": "Mouse wheel to zoom · Drag to pan · ESC to close · 0 to reset",
+    "band_label": "Band:",
+    "band_unavailable": "Requires Sentinel Hub configured",
+    "compare_off": "Compare before/after",
+    "compare_on": "Comparing",
+    "before": "Before",
+    "after": "After",
+    "compare_mode_active": "Temporal comparison active",
+    "compare_hint": "Drag the handle to reveal before vs. after"
   },
   "language": {
     "switcher_aria": "Change language",

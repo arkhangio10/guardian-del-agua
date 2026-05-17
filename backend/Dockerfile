@@ -34,5 +34,10 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Shell form so $PORT expands at runtime (Railway/Cloud Run assign dynamic ports).
-# Fallback to 8080 if $PORT isn't set (local docker run).
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1
+# Log to stderr (visible in Deploy Logs) for debugging; tee to stdout for healthcheck-friendly output.
+CMD echo "[startup] PORT=${PORT:-unset} — binding uvicorn..." && \
+    uvicorn main:app \
+      --host 0.0.0.0 \
+      --port ${PORT:-8080} \
+      --workers 1 \
+      --log-level info

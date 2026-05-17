@@ -10,21 +10,29 @@ from layers import detect, attribute, predict, act, publish
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import os, sys
+    print(f"[startup] python={sys.version.split()[0]} cwd={os.getcwd()}", flush=True)
+    print(f"[startup] PORT={os.environ.get('PORT', 'unset')}", flush=True)
+
+    # Concessions: best-effort, never blocks startup.
     try:
         from layers.attribute import load_concessions
         load_concessions()
-        print("[OK] Concession polygons loaded")
-    except FileNotFoundError as e:
-        print(f"[WARN] Concession data not found: {e}")
+        print("[OK] Concession polygons loaded", flush=True)
+    except Exception as e:
+        print(f"[WARN] Concession data not loaded ({type(e).__name__}): {e}", flush=True)
 
+    # Model: best-effort, never blocks startup.
     try:
         from layers.predict import get_model
         get_model()
-        print("[OK] XGBoost model loaded")
-    except FileNotFoundError:
-        print("[WARN] impact_model.pkl not found — heuristic fallback active until ml/train.py is run")
+        print("[OK] XGBoost model loaded", flush=True)
+    except Exception as e:
+        print(f"[WARN] XGBoost model not loaded ({type(e).__name__}): {e} — heuristic fallback active", flush=True)
 
+    print("[startup] FastAPI ready to serve requests", flush=True)
     yield
+    print("[shutdown] FastAPI stopping", flush=True)
 
 
 app = FastAPI(

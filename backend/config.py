@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     openrouter_api_key: str = ""
     google_cloud_project: str = ""
-    google_application_credentials: str = ""
+    google_application_credentials: str = ""        # local file path
+    google_application_credentials_json: str = ""    # full JSON content (Railway/prod)
     firestore_emulator_host: str = ""
     confidence_threshold: float = 0.70
 

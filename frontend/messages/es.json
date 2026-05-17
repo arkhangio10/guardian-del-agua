@@ -110,6 +110,26 @@
     "temporal_window": "Ventana temporal",
     "provenance_prefix": "Método"
   },
+  "climate": {
+    "panel_title": "Contexto climático ENSO",
+    "severity": "Severidad",
+    "scenario_compare_title": "Comparación de escenarios",
+    "base_label": "Predicción base",
+    "nino_label": "Bajo El Niño activo",
+    "method_prefix": "Método",
+    "sources": "Fuentes",
+    "costero_explainer": "Calentamiento concentrado en costa peruana (Niño 1+2) con Niño 3.4 neutral. Patrón que causó inundaciones devastadoras en 2017 y 2023.",
+    "labels": {
+      "neutral": "ENSO neutral",
+      "la_nina_weak": "La Niña débil",
+      "la_nina_moderate": "La Niña moderada",
+      "la_nina_strong": "La Niña fuerte",
+      "el_nino_weak": "El Niño débil",
+      "el_nino_moderate": "El Niño moderado",
+      "el_nino_strong": "El Niño fuerte",
+      "el_nino_costero": "El Niño Costero"
+    }
+  },
   "language": {
     "switcher_aria": "Cambiar idioma",
     "es": "Español",

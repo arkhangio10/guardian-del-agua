@@ -122,7 +122,7 @@ async def predict_impact_endpoint(alert_id: str):
     spectral = None
     try:
         from layers.detect import compute_spectral_evidence
-        spectral = compute_spectral_evidence(data)
+        spectral = await compute_spectral_evidence(data)
         # Map evidence_strength [0,1] → multiplier [0.7, 1.3]
         mult = 0.7 + 0.6 * float(spectral.get("evidence_strength", 0.0))
         people_7d = int(people_7d * mult)
@@ -155,6 +155,20 @@ async def predict_impact_endpoint(alert_id: str):
     except Exception as exc:
         print(f"[WARN] bootstrap CI skipped: {exc}")
 
+    # Climate scenario — fetched separately from the base prediction so the UI
+    # can show "base XGBoost: X" vs "under El Niño Costero: Y" side by side.
+    # This is NOT a hidden multiplier on the base; it is an explicit
+    # alternative scenario the user can see and reason about.
+    climate_state = None
+    el_nino_scenario = None
+    try:
+        from layers.climate import fetch_climate_state, project_under_el_nino
+        climate_state = await fetch_climate_state()
+        if climate_state and climate_state.get("severity", 0) > 0:
+            el_nino_scenario = project_under_el_nino(prediction.model_dump(), climate_state)
+    except Exception as exc:
+        print(f"[WARN] climate scenario skipped: {exc}")
+
     update_payload: dict = {
         "predictions": prediction.model_dump(),
         "status": "predicted",
@@ -165,10 +179,18 @@ async def predict_impact_endpoint(alert_id: str):
         update_payload["predictions_intervals"] = intervals
     if spectral is not None:
         update_payload["spectral_evidence"] = spectral
+    if climate_state is not None:
+        update_payload["climate_state"] = climate_state
+    if el_nino_scenario is not None:
+        update_payload["el_nino_scenario"] = el_nino_scenario
 
     db.collection("alerts").document(alert_id).update(update_payload)
 
     response = prediction.model_dump()
     if spectral is not None:
         response["spectral_evidence"] = spectral
+    if climate_state is not None:
+        response["climate_state"] = climate_state
+    if el_nino_scenario is not None:
+        response["el_nino_scenario"] = el_nino_scenario
     return response

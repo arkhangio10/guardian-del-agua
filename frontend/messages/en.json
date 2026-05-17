@@ -110,6 +110,26 @@
     "temporal_window": "Temporal window",
     "provenance_prefix": "Method"
   },
+  "climate": {
+    "panel_title": "ENSO climate context",
+    "severity": "Severity",
+    "scenario_compare_title": "Scenario comparison",
+    "base_label": "Base prediction",
+    "nino_label": "Under active El Niño",
+    "method_prefix": "Method",
+    "sources": "Sources",
+    "costero_explainer": "Warming concentrated on the Peruvian coast (Niño 1+2) while Niño 3.4 stays neutral. The pattern that drove devastating Amazon floods in 2017 and 2023.",
+    "labels": {
+      "neutral": "ENSO neutral",
+      "la_nina_weak": "Weak La Niña",
+      "la_nina_moderate": "Moderate La Niña",
+      "la_nina_strong": "Strong La Niña",
+      "el_nino_weak": "Weak El Niño",
+      "el_nino_moderate": "Moderate El Niño",
+      "el_nino_strong": "Strong El Niño",
+      "el_nino_costero": "Coastal El Niño"
+    }
+  },
   "language": {
     "switcher_aria": "Change language",
     "es": "Spanish",

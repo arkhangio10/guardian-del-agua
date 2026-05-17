@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 print("[bootstrap] fastapi imports done", flush=True)
 
-from layers import detect, attribute, predict, act, publish, access
+from layers import detect, attribute, predict, act, publish, access, climate
 print("[bootstrap] layers imports done — main module fully loaded", flush=True)
 
 
@@ -84,6 +84,7 @@ app.include_router(predict.router, prefix="/predict", tags=["Layer 3 — Predict
 app.include_router(act.router, prefix="/act", tags=["Layer 4 — Act"])
 app.include_router(publish.router, prefix="/publish", tags=["Layer 5 — Publish"])
 app.include_router(access.router, prefix="/access", tags=["Layer 6 — Access requests"])
+app.include_router(climate.router, prefix="/climate", tags=["Layer 7 — Climate (ENSO)"])
 
 
 @app.get("/health", tags=["System"])

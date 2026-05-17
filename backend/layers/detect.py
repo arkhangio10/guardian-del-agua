@@ -140,6 +140,172 @@ def _resolve_evalscript(band: str, contamination_type: str) -> str:
         return _index_evalscript_for(contamination_type)
     return EVALSCRIPT_RGB
 
+
+# ---------- Pure grayscale evalscripts for pixel-level analysis ----------
+# These return a single-channel image where pixel intensity 0..255 maps to the
+# spectral index strength on water pixels (0 elsewhere). Used by
+# compute_spectral_evidence_real() to extract numeric features.
+
+EVALSCRIPT_NHI_GRAY = """
+//VERSION=3
+function setup() {
+  return {
+    input: ["B03", "B04", "B08", "B11"],
+    output: { bands: 1, sampleType: "UINT8" }
+  };
+}
+function evaluatePixel(s) {
+  var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
+  if (ndwi < 0.1) return [0];  // not water → no signal
+  var nhi  = (s.B08 - s.B11) / Math.max(s.B08 + s.B11, 0.0001);
+  // Clamp nhi to [0, 0.6] and map to 0..255
+  var v = Math.max(0, Math.min(0.6, nhi)) / 0.6;
+  return [Math.round(v * 255)];
+}
+"""
+
+EVALSCRIPT_NDTI_GRAY = """
+//VERSION=3
+function setup() {
+  return {
+    input: ["B03", "B04", "B08"],
+    output: { bands: 1, sampleType: "UINT8" }
+  };
+}
+function evaluatePixel(s) {
+  var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
+  if (ndwi < 0.05) return [0];
+  var ndti = (s.B04 - s.B03) / Math.max(s.B04 + s.B03, 0.0001);
+  var v = Math.max(0, Math.min(0.4, ndti)) / 0.4;
+  return [Math.round(v * 255)];
+}
+"""
+
+EVALSCRIPT_NDCI_GRAY = """
+//VERSION=3
+function setup() {
+  return {
+    input: ["B03", "B04", "B05", "B08"],
+    output: { bands: 1, sampleType: "UINT8" }
+  };
+}
+function evaluatePixel(s) {
+  var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
+  if (ndwi < 0.05) return [0];
+  var ndci = (s.B05 - s.B04) / Math.max(s.B05 + s.B04, 0.0001);
+  var v = Math.max(0, Math.min(0.3, ndci)) / 0.3;
+  return [Math.round(v * 255)];
+}
+"""
+
+
+def _gray_evalscript_for(contamination_type: str) -> str | None:
+    return {
+        "hydrocarbon": EVALSCRIPT_NHI_GRAY,
+        "turbidity": EVALSCRIPT_NDTI_GRAY,
+        "algal_bloom": EVALSCRIPT_NDCI_GRAY,
+    }.get(contamination_type)
+
+
+def _analyze_grayscale(png_bytes: bytes) -> dict:
+    """
+    Decode a single-channel PNG and return statistics over the spectral index.
+    Returns: mean_intensity (0..1), max_intensity (0..1), coverage_pct (0..1, pixels > threshold).
+    Threshold for 'affected pixel' is intensity > 64/255 ≈ 0.25 of full scale.
+    """
+    from io import BytesIO
+    from PIL import Image
+    import numpy as np
+
+    img = Image.open(BytesIO(png_bytes)).convert("L")
+    arr = np.asarray(img, dtype=np.float32) / 255.0
+    total = arr.size
+    if total == 0:
+        return {"mean_intensity": 0.0, "max_intensity": 0.0, "coverage_pct": 0.0}
+    threshold = 64.0 / 255.0
+    affected = int((arr > threshold).sum())
+    return {
+        "mean_intensity": float(arr.mean()),
+        "max_intensity": float(arr.max()),
+        "coverage_pct": float(affected / total),
+    }
+
+
+async def compute_spectral_evidence_real(data: dict) -> dict | None:
+    """
+    v1: real pixel-level spectral evidence.
+
+    Fetches before + after Sentinel-2 imagery rendered through the contamination-
+    specific spectral evalscript (pure grayscale), decodes both with Pillow, and
+    computes delta statistics on the spectral index between the two dates.
+
+    Returns None if Sentinel Hub is not configured or the fetch fails, so the
+    caller can fall back to the v0 heuristic.
+    """
+    if not (settings.sentinel_hub_client_id and settings.sentinel_hub_client_secret):
+        return None
+
+    contamination_type = data.get("contamination_type", "none")
+    evalscript = _gray_evalscript_for(contamination_type)
+    if evalscript is None:
+        return None
+
+    bbox = data.get("sentinel_bbox")
+    if not bbox or len(bbox) != 4:
+        return None
+
+    incident_date = _alert_incident_date(data)
+    before_date = _shift_date(incident_date, -BEFORE_OFFSET_DAYS)
+
+    try:
+        before_png = await fetch_sentinel_image(bbox, before_date, evalscript=evalscript)
+        after_png = await fetch_sentinel_image(bbox, incident_date, evalscript=evalscript)
+    except Exception as exc:
+        print(f"[WARN] spectral pixel fetch failed: {exc}", flush=True)
+        return None
+
+    try:
+        before_stats = _analyze_grayscale(before_png)
+        after_stats = _analyze_grayscale(after_png)
+    except Exception as exc:
+        print(f"[WARN] spectral pixel decode failed: {exc}", flush=True)
+        return None
+
+    delta_mean = max(0.0, after_stats["mean_intensity"] - before_stats["mean_intensity"])
+    delta_coverage = max(0.0, after_stats["coverage_pct"] - before_stats["coverage_pct"])
+
+    # Evidence strength: weighted combination of how much MORE anomalous pixels
+    # appeared AND how much stronger the average signal got. Both bounded to [0,1].
+    # Geometric-style: sqrt(delta_mean × delta_coverage) emphasizes that BOTH
+    # need to move, not just one.
+    import math
+    raw = math.sqrt(min(1.0, delta_mean * 4.0) * min(1.0, delta_coverage * 6.0))
+    evidence_strength = max(0.0, min(1.0, raw))
+
+    index_name = {
+        "hydrocarbon": "NHI",
+        "turbidity": "NDTI",
+        "algal_bloom": "NDCI",
+    }.get(contamination_type, "NDWI")
+
+    return {
+        "evidence_strength": round(evidence_strength, 3),
+        "affected_area_pct": round(after_stats["coverage_pct"], 3),
+        "index_name": index_name,
+        "before_date": before_date,
+        "after_date": incident_date,
+        "before_stats": {k: round(v, 4) for k, v in before_stats.items()},
+        "after_stats": {k: round(v, 4) for k, v in after_stats.items()},
+        "delta_mean": round(delta_mean, 4),
+        "delta_coverage": round(delta_coverage, 4),
+        "_method": (
+            f"v1 pixel-delta: sqrt(min(1, Δmean×4) × min(1, Δcoverage×6)) "
+            f"on {index_name} grayscale rendered from Sentinel-2 L2A pair "
+            f"({before_date} vs {incident_date})"
+        ),
+        "_method_version": "v1-pixel-delta",
+    }
+
 SENTINEL_AUTH_URL = (
     "https://services.sentinel-hub.com/auth/realms/main/protocol/openid-connect/token"
 )
@@ -425,26 +591,14 @@ async def get_alert_image(alert_id: str, band: str = "rgb", phase: str = "after"
     return RedirectResponse(_esri_export_url(bbox), status_code=302)
 
 
-def compute_spectral_evidence(data: dict) -> dict:
+def compute_spectral_evidence_v0(data: dict) -> dict:
     """
-    Compute a spectral-evidence descriptor for an alert.
+    v0: heuristic spectral-evidence descriptor.
 
-    v0 (current): heuristic mapping from Claude Vision's confidence and the
-    affected_area_pct it returns, weighted by contamination_type sensitivity.
-    Documented as v0 in `_method` so the chain-of-custody is honest about
-    what is and isn't measured. v1 will replace this with real pixel-level
-    delta extraction from the before/after Sentinel-2 pair.
+    Used when Sentinel Hub is not configured, or when v1 pixel extraction
+    fails. Derives from Claude Vision's confidence and a proxy for
+    affected_area_pct, weighted by contamination_type sensitivity.
 
-    Returns:
-      {
-        "evidence_strength": float in [0, 1],
-        "affected_area_pct": float in [0, 1],
-        "index_name": "NHI" | "NDTI" | "NDCI" | "NDWI",
-        "before_date": str,
-        "after_date": str,
-        "_method": str (provenance label),
-        "_method_version": "v0-heuristic" | "v1-pixel-delta",
-      }
     """
     contamination_type = data.get("contamination_type", "none")
     confidence = float(data.get("confidence", 0.0) or 0.0)
@@ -489,6 +643,21 @@ def compute_spectral_evidence(data: dict) -> dict:
     }
 
 
+async def compute_spectral_evidence(data: dict) -> dict:
+    """
+    Resolve the spectral-evidence descriptor for an alert. Prefers v1 (real
+    pixel delta on the before/after pair) when Sentinel Hub credentials are
+    configured; falls back to v0 (heuristic from confidence + sensitivity)
+    otherwise. The returned dict always includes `_method_version` so the
+    chain-of-custody is explicit about what was actually measured.
+    """
+    if settings.sentinel_hub_client_id and settings.sentinel_hub_client_secret:
+        v1 = await compute_spectral_evidence_real(data)
+        if v1 is not None:
+            return v1
+    return compute_spectral_evidence_v0(data)
+
+
 @router.get("/alerts/{alert_id}/spectral")
 async def get_alert_spectral(alert_id: str):
     """
@@ -500,7 +669,7 @@ async def get_alert_spectral(alert_id: str):
     doc = db.collection("alerts").document(alert_id).get()
     if not doc.exists:
         raise HTTPException(404, f"Alert {alert_id} not found")
-    return compute_spectral_evidence(doc.to_dict())
+    return await compute_spectral_evidence(doc.to_dict())
 
 
 @router.get("/alerts/{alert_id}/comparison")

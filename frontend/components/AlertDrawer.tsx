@@ -168,23 +168,23 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
                       {tAlert("image_unavailable")}
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none" />
-                  <div className="absolute inset-4 border border-teal-400/50 rounded-xl pointer-events-none" />
-                  {/* Click-to-expand hint */}
-                  {!imgError && (
-                    <div className="absolute top-4 right-4 px-2.5 py-1 rounded-md bg-slate-950/70 backdrop-blur text-[10px] uppercase tracking-wider text-teal-200 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none">
-                      ⊕ {tLight("click_to_expand")}
-                    </div>
-                  )}
-                  {/* Claude reasoning ribbon */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-transparent to-slate-950/40 pointer-events-none" />
+                  <div className="absolute inset-4 border border-teal-400/40 rounded-xl pointer-events-none" />
+                  {/* Claude reasoning ribbon — top, narrow, glass */}
                   {(alert.description || (alert.contamination_type && tContam(`${alert.contamination_type}_note` as any))) && (
-                    <div className="absolute left-4 right-4 bottom-4 flex items-start gap-2 px-3 py-2 rounded-lg glass border border-teal-500/30 pointer-events-none">
-                      <span className="text-[10px] uppercase tracking-wider text-teal-300 font-semibold flex-shrink-0 mt-0.5">
+                    <div className="absolute top-4 left-4 right-4 md:right-auto md:max-w-[78%] flex items-start gap-2 px-3 py-2 rounded-lg glass-strong border border-teal-500/30 pointer-events-none shadow-glow-teal">
+                      <span className="text-[10px] uppercase tracking-[0.18em] text-teal-300 font-semibold flex-shrink-0 mt-0.5">
                         {tAlert("claude_label")}
                       </span>
-                      <p className="text-[11px] text-slate-100 leading-snug">
+                      <p className="text-[11px] sm:text-[12px] text-slate-100 leading-snug">
                         {alert.description ?? tContam(`${alert.contamination_type}_note` as any)}
                       </p>
+                    </div>
+                  )}
+                  {/* Click-to-expand hint — bottom-right, doesn't compete with chip below */}
+                  {!imgError && (
+                    <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-md bg-slate-950/75 backdrop-blur text-[10px] uppercase tracking-wider text-teal-200 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none border border-teal-500/30">
+                      ⊕ {tLight("click_to_expand")}
                     </div>
                   )}
                 </div>
@@ -320,6 +320,14 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
 
               {alert.spectral_evidence && (
                 <SpectralPanel evidence={alert.spectral_evidence} />
+              )}
+
+              {alert.climate_state && (
+                <ClimatePanel
+                  climate={alert.climate_state}
+                  base={pred}
+                  scenario={alert.el_nino_scenario}
+                />
               )}
 
               <Panel title={t("actions_panel")} tone="default">
@@ -520,6 +528,160 @@ function SpecCell({
       <div className={`mt-0.5 text-sm font-bold ${accent ? "text-cyan-300" : "text-slate-200"}`}>
         {value}
       </div>
+    </div>
+  );
+}
+
+const CLIMATE_LABEL: Record<string, { label: string; emoji: string; tone: string }> = {
+  neutral: { label: "ENSO neutral", emoji: "⚖", tone: "text-slate-300 border-slate-600/40 bg-slate-800/40" },
+  la_nina_weak: { label: "La Niña débil", emoji: "❄", tone: "text-sky-300 border-sky-700/40 bg-sky-950/30" },
+  la_nina_moderate: { label: "La Niña moderada", emoji: "❄", tone: "text-sky-200 border-sky-600/50 bg-sky-950/40" },
+  la_nina_strong: { label: "La Niña fuerte", emoji: "❄", tone: "text-sky-100 border-sky-500/60 bg-sky-900/50" },
+  el_nino_weak: { label: "El Niño débil", emoji: "🌡", tone: "text-amber-300 border-amber-700/40 bg-amber-950/30" },
+  el_nino_moderate: { label: "El Niño moderado", emoji: "🌡", tone: "text-orange-300 border-orange-600/50 bg-orange-950/40" },
+  el_nino_strong: { label: "El Niño fuerte", emoji: "🔥", tone: "text-red-300 border-red-600/50 bg-red-950/40" },
+  el_nino_costero: { label: "El Niño Costero", emoji: "🌊", tone: "text-red-200 border-red-500/60 bg-red-900/50" },
+};
+
+function ClimatePanel({
+  climate,
+  base,
+  scenario,
+}: {
+  climate: any;
+  base: any;
+  scenario: any;
+}) {
+  const tClim = useTranslations("climate");
+  const labelKey = climate?.label ?? "neutral";
+  const meta = CLIMATE_LABEL[labelKey] ?? CLIMATE_LABEL.neutral;
+  const isCostero = climate?.el_nino_costero === true;
+  const severity = Math.max(0, Math.min(1, Number(climate?.severity) || 0));
+  const sevPct = Math.round(severity * 100);
+
+  const showScenario = !!scenario && severity > 0;
+
+  return (
+    <section className={`rounded-xl border ${meta.tone} p-4 space-y-3`}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-lg" aria-hidden>
+            {meta.emoji}
+          </span>
+          <h3 className="text-[10px] uppercase tracking-[0.18em] font-semibold">
+            {tClim("panel_title")}
+          </h3>
+        </div>
+        <span className="text-[10px] font-mono uppercase tracking-wider opacity-80">
+          {climate?.observation_year} · Niño 3.4: {climate?.nino_3_4_anomaly_c?.toFixed(2)}°C
+          {climate?.nino_1_2_anomaly_c != null && (
+            <> · Niño 1+2: {climate.nino_1_2_anomaly_c.toFixed(2)}°C</>
+          )}
+        </span>
+      </div>
+
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <div>
+          <div className="text-xl font-bold">{tClim(`labels.${labelKey}` as any) ?? meta.label}</div>
+          {isCostero && (
+            <p className="text-[11px] opacity-80 mt-0.5">{tClim("costero_explainer")}</p>
+          )}
+        </div>
+        <div className="text-right">
+          <div className="text-xs uppercase tracking-wider opacity-60">{tClim("severity")}</div>
+          <div className="text-2xl font-bold leading-none mt-0.5">{sevPct}%</div>
+        </div>
+      </div>
+
+      {showScenario && base && (
+        <div className="pt-2 border-t border-current/20">
+          <div className="text-[10px] uppercase tracking-[0.18em] font-semibold opacity-80 mb-2">
+            {tClim("scenario_compare_title")}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <ScenarioCol
+              title={tClim("base_label")}
+              pred={base}
+              accent={false}
+            />
+            <ScenarioCol
+              title={isCostero ? "El Niño Costero" : tClim("nino_label")}
+              pred={scenario}
+              accent={true}
+            />
+          </div>
+          {scenario?._method && (
+            <p className="text-[10px] opacity-60 italic mt-2 leading-snug">
+              {tClim("method_prefix")}: {scenario._method}
+            </p>
+          )}
+        </div>
+      )}
+
+      {climate?.sources && (
+        <div className="flex items-center gap-2 text-[10px] opacity-60 pt-2 border-t border-current/20">
+          <span className="uppercase tracking-wider font-semibold">{tClim("sources")}:</span>
+          {climate.sources.map((s: any, i: number) => (
+            <a
+              key={i}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:opacity-100"
+            >
+              {s.name}
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ScenarioCol({
+  title,
+  pred,
+  accent,
+}: {
+  title: string;
+  pred: any;
+  accent: boolean;
+}) {
+  const bg = accent
+    ? "bg-red-950/30 border-red-600/50"
+    : "bg-slate-900/40 border-slate-700/40";
+  return (
+    <div className={`rounded-lg border ${bg} p-3 space-y-1.5`}>
+      <div className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${accent ? "text-red-200" : "text-slate-400"}`}>
+        {title}
+      </div>
+      <div className="space-y-1 text-xs">
+        <ScenarioRow label="Afectados 30d" value={pred?.people_affected_30d?.toLocaleString() ?? "—"} bold accent={accent} />
+        <ScenarioRow label="Mortandad pisc." value={pred?.fish_dieoff_30d_pct != null ? `${Math.round(pred.fish_dieoff_30d_pct)}%` : "—"} />
+        <ScenarioRow label="Recuperación" value={pred?.recovery_days != null ? `${pred.recovery_days} d` : "—"} />
+        <ScenarioRow label="Daño USD" value={pred?.economic_damage_usd != null ? `$${pred.economic_damage_usd.toLocaleString("en-US")}` : "—"} />
+      </div>
+    </div>
+  );
+}
+
+function ScenarioRow({
+  label,
+  value,
+  bold,
+  accent,
+}: {
+  label: string;
+  value: React.ReactNode;
+  bold?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="text-[10px] text-slate-500 flex-shrink-0">{label}</span>
+      <span className={`${bold ? "font-bold" : ""} ${accent && bold ? "text-red-200" : "text-slate-200"}`}>
+        {value}
+      </span>
     </div>
   );
 }

@@ -21,6 +21,27 @@ async def lifespan(app: FastAPI):
     print(f"[startup] python={sys.version.split()[0]} cwd={os.getcwd()}", flush=True)
     print(f"[startup] PORT={os.environ.get('PORT', 'unset')}", flush=True)
 
+    # Diagnostic: which expected env vars actually reach this container?
+    # We never print values — only presence + length. Safe to leave in production logs.
+    expected_env = [
+        "ANTHROPIC_API_KEY",
+        "SENTINEL_HUB_CLIENT_ID",
+        "SENTINEL_HUB_CLIENT_SECRET",
+        "ZAVU_API_KEY",
+        "ZAVU_BASE_URL",
+        "ZAVU_SENDER",
+        "CONTEXT7_API_KEY",
+        "RESEND_API_KEY",
+        "GOOGLE_CLOUD_PROJECT",
+        "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+    ]
+    print("[env] --- begin diagnostic ---", flush=True)
+    for key in expected_env:
+        val = os.environ.get(key, "")
+        status = f"SET len={len(val)}" if val else "MISSING"
+        print(f"[env] {key}: {status}", flush=True)
+    print("[env] --- end diagnostic ---", flush=True)
+
     # Concessions: best-effort, never blocks startup.
     try:
         from layers.attribute import load_concessions

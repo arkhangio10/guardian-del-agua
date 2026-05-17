@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ocean: #0E5E7F;
+  --teal: #1B998B;
+}
+
+body {
+  background: #0f1923;
+  color: #e2e8f0;
+}
+
+.maplibregl-map {
+  border-radius: 8px;
+}

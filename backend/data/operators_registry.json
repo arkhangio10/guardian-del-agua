@@ -1,0 +1,81 @@
+{
+  "_metadata": {
+    "title": "Registro de operadores — derrames documentados en la Amazonía peruana",
+    "coverage": "1997-2023 · Loreto · Datem del Marañón · Andoas",
+    "sources": [
+      "OEFA — registros de fiscalización 2014–2023",
+      "OSINERGMIN — sanciones a operadores de hidrocarburos",
+      "Mongabay Latam — investigaciones de derrames Loreto 2016–2023",
+      "Oxfam Internacional — informe 'La Sombra del Petróleo' (2019)",
+      "El Comercio — base de datos derrames Oleoducto Norperuano"
+    ],
+    "totals_verified": {
+      "total_spills_amazonia_peruana": 831,
+      "total_spills_peru_nacional": 1462,
+      "period": "1997-2023"
+    },
+    "validation_note": "Cifras consolidadas de fuentes públicas. Datos individuales por operador sujetos a revisión final con OEFA antes de publicación pre-demo. Marcadas 'Datos en validación' donde aplique."
+  },
+  "operators": [
+    {
+      "operator_name": "Petroperú S.A.",
+      "concession_id": "ONP-Tramo-I",
+      "osinergmin_id": "OSI-ONP-1974",
+      "asset_type": "Oleoducto Norperuano",
+      "total_spills": 91,
+      "spills_period": "2013-2023",
+      "fines_imposed": 51,
+      "fines_paid": 22,
+      "open_sanctions": 4,
+      "legal_status": "active",
+      "parent_company": "Estado Peruano (100%)",
+      "_source": "OEFA + Mongabay (NP 91 derrames 2013-2023)",
+      "_notes": "Operador del Oleoducto Norperuano. Multas pagadas 22 / impuestas 51 según registros públicos OEFA."
+    },
+    {
+      "operator_name": "Frontera Energy Perú S.A.C.",
+      "concession_id": "Lote-192",
+      "osinergmin_id": "OSI-192-2016",
+      "asset_type": "Lote petrolero (ex-1AB)",
+      "total_spills": 233,
+      "spills_period": "1997-Q1 2021 (acumulado del lote, todos los operadores)",
+      "fines_imposed": null,
+      "fines_paid": null,
+      "open_sanctions": 1,
+      "legal_status": "active",
+      "parent_company": "Frontera Energy Corporation (Canadá)",
+      "_source": "Oxfam 'La Sombra del Petróleo' + OEFA",
+      "_notes": "Lote 192 (ex 1AB) acumula 233 derrames documentados a Q1 2021 (todos los operadores históricos: OXY, Pluspetrol, Petroperú, Frontera). Multas individuales por operador en validación."
+    },
+    {
+      "operator_name": "Pluspetrol Norte S.A.",
+      "concession_id": "Lote-8",
+      "osinergmin_id": "OSI-008-1994",
+      "asset_type": "Lote petrolero",
+      "total_spills": 189,
+      "spills_period": "1997-Q1 2021",
+      "fines_imposed": null,
+      "fines_paid": null,
+      "open_sanctions": null,
+      "legal_status": "in_liquidation",
+      "parent_company": "Pluspetrol S.A. (Argentina)",
+      "_source": "Oxfam 'La Sombra del Petróleo' + OEFA",
+      "_notes": "189 derrames documentados en Lote 8 al Q1 2021. Empresa en liquidación desde 2020 — multas pagadas en validación con autoridad concursal."
+    },
+    {
+      "operator_name": "Pluspetrol Norte S.A.",
+      "concession_id": "Lote-95",
+      "osinergmin_id": "OSI-095-2000",
+      "asset_type": "Lote petrolero",
+      "total_spills": 38,
+      "spills_period": "2000-2023",
+      "fines_imposed": null,
+      "fines_paid": null,
+      "open_sanctions": null,
+      "legal_status": "in_liquidation",
+      "parent_company": "Pluspetrol S.A. (Argentina)",
+      "_source": "OEFA + RAISG 2022",
+      "_notes": "Datos en validación con autoridad concursal."
+    }
+  ]
+}

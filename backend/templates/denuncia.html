@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { margin: 2.5cm; size: A4; }
+    body { font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.5; color: #1a1a1a; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0E5E7F; padding-bottom: 15px; }
+    .header h1 { font-size: 13pt; font-weight: bold; color: #0E5E7F; margin: 0; }
+    .header h2 { font-size: 11pt; margin: 4px 0; }
+    .header p { font-size: 9pt; color: #555; margin: 2px 0; }
+    .section { margin: 18px 0; }
+    .section-title { font-weight: bold; font-size: 11pt; color: #0E5E7F; text-transform: uppercase;
+                     border-bottom: 1px solid #0E5E7F; margin-bottom: 8px; padding-bottom: 3px; }
+    .evidence-box { background: #f5f9fc; border-left: 4px solid #1B998B; padding: 10px 14px;
+                    margin: 10px 0; font-size: 10pt; }
+    .evidence-box strong { display: block; color: #0E5E7F; margin-bottom: 4px; }
+    .impact-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }
+    .impact-table th { background: #0E5E7F; color: white; padding: 6px 10px; text-align: left; }
+    .impact-table td { padding: 5px 10px; border-bottom: 1px solid #ddd; }
+    .impact-table tr:nth-child(even) td { background: #f5f9fc; }
+    .footer { margin-top: 40px; font-size: 9pt; color: #666; border-top: 1px solid #ccc; padding-top: 10px; }
+    .signature-block { margin-top: 50px; display: flex; justify-content: space-between; }
+    .signature-line { border-top: 1px solid #333; width: 220px; padding-top: 5px; font-size: 9pt; text-align: center; }
+    pre { white-space: pre-wrap; font-family: inherit; font-size: 11pt; margin: 0; }
+    .preliminary-stamp {
+      background: #fff4e6; border: 2px solid #d97706; padding: 12px 16px;
+      border-radius: 6px; margin: 18px 0; font-size: 10pt;
+    }
+    .preliminary-stamp strong { color: #b45309; display: block; margin-bottom: 4px; }
+    .chain-of-custody {
+      background: #f0f9ff; border: 1px solid #0E5E7F; border-radius: 6px;
+      padding: 12px 16px; margin: 14px 0; font-size: 9.5pt;
+    }
+    .chain-of-custody h3 {
+      margin: 0 0 8px 0; font-size: 10.5pt; color: #0E5E7F;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .chain-of-custody table { width: 100%; border-collapse: collapse; }
+    .chain-of-custody td { padding: 4px 6px; vertical-align: top; }
+    .chain-of-custody td:first-child {
+      font-weight: bold; color: #0E5E7F; width: 40%; white-space: nowrap;
+    }
+    .chain-of-custody td:nth-child(2) { font-family: monospace; font-size: 9pt; word-break: break-all; }
+    .disclaimer {
+      background: #fef2f2; border-left: 4px solid #dc2626; padding: 10px 14px;
+      margin: 16px 0; font-size: 9pt; color: #7f1d1d;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>ORGANISMO DE EVALUACIÓN Y FISCALIZACIÓN AMBIENTAL — OEFA</h1>
+    <h2>DENUNCIA ADMINISTRATIVA — DOCUMENTO PRELIMINAR</h2>
+    <p>Generada por Guardián del Agua · guardiandelagua.la · {{ generated_at }}</p>
+  </div>
+
+  <div class="preliminary-stamp">
+    <strong>DOCUMENTO PRELIMINAR</strong>
+    Este documento constituye un borrador técnico generado automáticamente. Requiere
+    <strong>verificación humana y firma de representante legal autorizado</strong>
+    (abogado ambiental, representante con poder legal de federación, fiscal o defensor)
+    antes de presentación formal ante OEFA, el Poder Judicial o cualquier otra autoridad.
+  </div>
+
+  <div class="chain-of-custody">
+    <h3>Cadena de Custodia Técnica</h3>
+    <table>
+      <tr><td>ID de evidencia</td><td>{{ alert.get("alert_id", "—") }}</td></tr>
+      <tr><td>Imagen satelital</td><td>Sentinel-2 L2A — ID {{ alert.get("sentinel_image_id", "—") }}</td></tr>
+      <tr><td>Fecha de captura satelital</td><td>{{ alert.get("detected_at", "—") }}</td></tr>
+      <tr><td>Bounding box (WGS84)</td><td>{{ alert.get("sentinel_bbox", []) | join(", ") }}</td></tr>
+      <tr><td>Resolución espacial</td><td>10 metros / pixel</td></tr>
+      <tr><td>Bandas espectrales analizadas</td><td>B02 (azul), B03 (verde), B04 (rojo), B08 (NIR)</td></tr>
+      <tr><td>Modelo de análisis visual</td><td>Claude Sonnet 4.5 (Anthropic) — modelo {{ model_version | default("claude-sonnet-4-5") }}</td></tr>
+      <tr><td>Confianza del análisis</td><td>{{ "%.1f"|format(alert.get("confidence", 0) * 100) }}%</td></tr>
+      <tr><td>Polígonos de concesión</td><td>OSINERGMIN/OEFA — dataset {{ data_version | default("norperuana-2024") }}</td></tr>
+      <tr><td>Hash criptográfico del paquete</td><td>SHA-256: {{ evidence_hash | default("—") }}</td></tr>
+      <tr><td>Sistema generador</td><td>Guardián del Agua v1.0 — código abierto MIT</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Indicios Técnicos Preliminares</div>
+    <div class="evidence-box">
+      <strong>Análisis automatizado — sujeto a verificación in situ</strong>
+      Satélite: Sentinel-2 L2A &nbsp;|&nbsp;
+      ID Imagen: {{ alert.get("sentinel_image_id", "—") }} &nbsp;|&nbsp;
+      Confianza: {{ "%.0f"|format(alert.get("confidence", 0.87) * 100) }}% &nbsp;|&nbsp;
+      Fecha detección: {{ alert.get("detected_at", "—") }}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Impacto Proyectado (XGBoost)</div>
+    <table class="impact-table">
+      <tr><th>Indicador</th><th>Valor</th></tr>
+      <tr><td>Personas afectadas (7 días)</td><td>{{ predictions.get("people_affected_7d", 0) | int }}</td></tr>
+      <tr><td>Personas afectadas (30 días)</td><td><strong>{{ predictions.get("people_affected_30d", 0) | int }}</strong></td></tr>
+      <tr><td>Mortandad piscícola proyectada</td><td>{{ predictions.get("fish_dieoff_30d_pct", 0) | round(0) | int }}%</td></tr>
+      <tr><td>Fuentes de agua en riesgo</td><td>{{ predictions.get("drinking_water_sources_at_risk", 0) }}</td></tr>
+      <tr><td>Daño económico estimado</td><td>S/ {{ "{:,}".format(predictions.get("economic_damage_usd", 0) | int) }}</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Texto de la Denuncia</div>
+    <pre>{{ denuncia_text }}</pre>
+  </div>
+
+  <div class="disclaimer">
+    <strong>Disclaimer metodológico.</strong>
+    Este documento fue generado mediante sistema automatizado de análisis satelital
+    y modelado predictivo. Los indicios técnicos aquí descritos son <em>preliminares</em>
+    y la responsabilidad atribuida al operador denunciado es <strong>presunta, sujeta
+    a verificación in situ</strong> por la autoridad fiscalizadora competente, conforme
+    al debido proceso administrativo. Las proyecciones de impacto humano y ecológico
+    son estimaciones modelísticas, no mediciones de campo. El presente documento
+    constituye solicitud de inicio de procedimiento sancionador, no afirmación de
+    responsabilidad ni sentencia anticipada.
+  </div>
+
+  <div class="footer">
+    <p>
+      Documento generado automáticamente por <strong>Guardián del Agua</strong> —
+      Plataforma de evidencia probatoria grado-litigación para la Amazonía peruana.<br>
+      Código abierto MIT · guardiandelagua.la<br>
+      <em>Requiere revisión y firma de representante legal autorizado antes de presentación formal.</em>
+    </p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@guardian_api_url",
+    "NEXT_PUBLIC_MAPLIBRE_STYLE": "@guardian_map_style"
+  }
+}

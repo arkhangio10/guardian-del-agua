@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import SatelliteLightbox from "./SatelliteLightbox";
 import { bboxAreaKm2, bboxSidesKm } from "@/utils/bbox";
+import { projectUnderElNino } from "@/utils/climate";
 
 const TYPE_META: Record<string, { tKey: string; chip: string; dot: string }> = {
   hydrocarbon: {
@@ -42,6 +43,7 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
   const [generating, setGenerating] = useState(false);
   const [denuncia, setDenuncia] = useState<any>(null);
   const [denunciaError, setDenunciaError] = useState<string | null>(null);
+  const [climateState, setClimateState] = useState<any>(null);
 
   useEffect(() => {
     if (!alertId) return;
@@ -59,6 +61,15 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
       .then(setAlert)
       .catch(() => setAlert(null))
       .finally(() => setLoading(false));
+
+    // Always fetch current ENSO climate state — demo alerts seeded directly into
+    // Firestore never went through /predict, so they don't have climate_state
+    // persisted. Showing the climate context regardless makes the layer visible
+    // and lets the user reason about projection even on historical alerts.
+    fetch(`${apiBase}/climate/state`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setClimateState(data))
+      .catch(() => setClimateState(null));
   }, [alertId, apiBase]);
 
   useEffect(() => {
@@ -322,13 +333,13 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
                 <SpectralPanel evidence={alert.spectral_evidence} />
               )}
 
-              {alert.climate_state && (
-                <ClimatePanel
-                  climate={alert.climate_state}
-                  base={pred}
-                  scenario={alert.el_nino_scenario}
-                />
-              )}
+              {(() => {
+                const climate = alert.climate_state ?? climateState;
+                if (!climate) return null;
+                const scenario =
+                  alert.el_nino_scenario ?? projectUnderElNino(pred, climate);
+                return <ClimatePanel climate={climate} base={pred} scenario={scenario} />;
+              })()}
 
               <Panel title={t("actions_panel")} tone="default">
                 {!denuncia ? (

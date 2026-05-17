@@ -1,11 +1,18 @@
 """Guardián del Agua — FastAPI backend entry point."""
+import sys
+print("[bootstrap] main.py loading...", flush=True)
+print(f"[bootstrap] python={sys.version.split()[0]}", flush=True)
+
 from contextlib import asynccontextmanager
+print("[bootstrap] stdlib imports done", flush=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+print("[bootstrap] fastapi imports done", flush=True)
 
 from layers import detect, attribute, predict, act, publish
+print("[bootstrap] layers imports done — main module fully loaded", flush=True)
 
 
 @asynccontextmanager

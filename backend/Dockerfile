@@ -33,11 +33,6 @@ ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
 EXPOSE 8080
 
-# Shell form so $PORT expands at runtime (Railway/Cloud Run assign dynamic ports).
-# Log to stderr (visible in Deploy Logs) for debugging; tee to stdout for healthcheck-friendly output.
-CMD echo "[startup] PORT=${PORT:-unset} — binding uvicorn..." && \
-    uvicorn main:app \
-      --host 0.0.0.0 \
-      --port ${PORT:-8080} \
-      --workers 1 \
-      --log-level info
+# JSON form with sh -c wrapper: proper signal forwarding via exec, $PORT expansion via shell.
+# This is the Railway/Cloud Run recommended pattern.
+CMD ["sh", "-c", "echo \"[startup] PORT=${PORT:-8080}\" && exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --log-level info"]

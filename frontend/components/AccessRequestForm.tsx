@@ -276,7 +276,14 @@ export default function AccessRequestForm() {
         <button
           type="submit"
           disabled={state.status === "submitting"}
-          className="w-full md:w-auto bg-teal-400 hover:bg-teal-300 active:bg-teal-500 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-bold px-6 py-3 rounded-lg transition-all shadow-lg shadow-teal-500/30 ring-1 ring-teal-300/50"
+          className="w-full md:w-auto font-bold px-6 py-3 rounded-lg transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{
+            background: "linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)",
+            color: "#ffffff",
+            boxShadow: "0 4px 14px rgba(20, 184, 166, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)",
+            textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+            border: "1px solid rgba(94, 234, 212, 0.6)",
+          }}
         >
           {state.status === "submitting" ? "Enviando…" : "Enviar solicitud →"}
         </button>

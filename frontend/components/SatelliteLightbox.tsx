@@ -31,6 +31,12 @@ const TYPE_CHIP: Record<string, string> = {
   algal_bloom: "bg-green-500/20 text-green-200 border-green-500/40",
 };
 
+const BAND_GLYPH: Record<Band, string> = {
+  rgb: "RGB",
+  nir: "NIR",
+  index: "IDX",
+};
+
 const IMG_FILTER = "contrast(1.35) saturate(1.5) brightness(1.05)";
 
 export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
@@ -42,6 +48,7 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
   const [band, setBand] = useState<Band>("rgb");
   const [compareMode, setCompareMode] = useState(false);
   const [sliderPct, setSliderPct] = useState(50);
+  const [infoCollapsed, setInfoCollapsed] = useState(false);
 
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -58,7 +65,6 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
       .then((data) => {
         if (cancelled) return;
         setComparison(data);
-        // Auto-enable compare mode when Sentinel Hub is configured (real before/after).
         if (data?.sentinel_hub_available) setCompareMode(true);
       })
       .catch(() => {});
@@ -77,6 +83,7 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
         setZoom(1);
         setOffset({ x: 0, y: 0 });
       }
+      if (e.key === "i") setInfoCollapsed((v) => !v);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -139,11 +146,8 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
     alert.description ??
     (typeKey in TYPE_CHIP ? tContam(`${typeKey}_note` as any) : "");
 
-  // URL builder per band+phase. Falls back to legacy /image (rgb/after) when no comparison data yet.
   function imageUrl(phase: "before" | "after"): string {
-    if (!comparison) {
-      return `${apiBase}/detect/alerts/${alert.alert_id}/image`;
-    }
+    if (!comparison) return `${apiBase}/detect/alerts/${alert.alert_id}/image`;
     const ph = comparison.phases[phase];
     return apiBase + (band === "nir" ? ph.url_nir : band === "index" ? ph.url_index : ph.url_rgb);
   }
@@ -158,37 +162,29 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
       aria-modal="true"
       onClick={onClose}
     >
-      {/* Top bar */}
+      {/* Top bar — slim, only essential controls */}
       <header
-        className="flex-shrink-0 px-6 py-3 border-b border-slate-800/60 flex items-center gap-4"
+        className="flex-shrink-0 h-12 px-4 sm:px-6 border-b border-slate-800/60 flex items-center gap-2 sm:gap-3"
         onClick={(e) => e.stopPropagation()}
       >
         <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${chipCls}`}
+          className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${chipCls}`}
         >
           {typeLabel}
         </span>
-        <span className="text-sm font-semibold text-slate-100 truncate">
+        <span className="hidden md:block min-w-0 flex-shrink text-sm font-semibold text-slate-100 truncate">
           {alert.attribution?.operator_name ?? tAlert("unknown_operator")}
         </span>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
           {!compareMode && (
-            <>
+            <div className="hidden sm:flex items-center gap-1 mr-1 px-1.5 py-0.5 rounded-md bg-slate-900/60 border border-slate-700/40">
               <ZoomBtn label="−" onClick={() => setZoom((z) => Math.max(z - 0.5, 1))} />
-              <span className="font-mono text-[11px] text-slate-300 w-12 text-center">
+              <span className="font-mono text-[10px] text-slate-300 w-10 text-center select-none">
                 {Math.round(zoom * 100)}%
               </span>
               <ZoomBtn label="+" onClick={() => setZoom((z) => Math.min(z + 0.5, 6))} />
-              <ZoomBtn
-                label={tLight("reset")}
-                onClick={() => {
-                  setZoom(1);
-                  setOffset({ x: 0, y: 0 });
-                }}
-                wide
-              />
-            </>
+            </div>
           )}
           {comparison?.sentinel_hub_available && (
             <button
@@ -197,59 +193,90 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
                 setZoom(1);
                 setOffset({ x: 0, y: 0 });
               }}
-              className={`ml-2 px-3 h-8 rounded-md text-[11px] font-semibold transition-colors ${
+              className={`px-2.5 sm:px-3 h-8 rounded-md text-[11px] font-semibold transition-colors flex items-center gap-1.5 ${
                 compareMode
-                  ? "bg-teal-500/30 text-teal-100 ring-1 ring-teal-400/60"
+                  ? "bg-teal-500/25 text-teal-100 ring-1 ring-teal-400/50"
                   : "bg-slate-800/70 text-slate-200 hover:bg-slate-700"
               }`}
             >
-              {compareMode ? tLight("compare_on") : tLight("compare_off")}
+              <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
+              <span className="hidden sm:inline">
+                {compareMode ? tLight("compare_on") : tLight("compare_off")}
+              </span>
+              <span className="sm:hidden">{compareMode ? "⇋" : "⇉"}</span>
             </button>
           )}
           <button
+            onClick={() => setInfoCollapsed((v) => !v)}
+            aria-label="Toggle info"
+            title="(i) — info"
+            className={`hidden sm:flex w-8 h-8 rounded-md items-center justify-center text-sm font-semibold transition-colors ${
+              infoCollapsed
+                ? "bg-slate-800/70 text-slate-400 hover:bg-slate-700"
+                : "bg-teal-500/15 text-teal-200 ring-1 ring-teal-400/30"
+            }`}
+          >
+            ⓘ
+          </button>
+          <button
             onClick={onClose}
             aria-label={tAlert("close")}
-            className="ml-2 w-9 h-9 rounded-full bg-slate-800/70 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-md bg-slate-800/70 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition-colors"
           >
             ✕
           </button>
         </div>
       </header>
 
-      {/* Band toggle */}
+      {/* Band toggle — segmented control, never wraps */}
       {comparison && (
         <div
-          className="flex-shrink-0 px-6 py-2 border-b border-slate-800/40 flex items-center gap-2 flex-wrap"
+          className="flex-shrink-0 px-4 sm:px-6 py-2 border-b border-slate-800/40 flex items-center gap-3"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mr-1">
+          <span className="hidden sm:inline text-[10px] uppercase tracking-[0.18em] text-slate-500 font-semibold flex-shrink-0">
             {tLight("band_label")}
           </span>
-          {comparison.bands.map((b) => {
-            const isActive = b.id === band;
-            const disabled = !b.available;
-            return (
-              <button
-                key={b.id}
-                onClick={() => !disabled && setBand(b.id)}
-                disabled={disabled}
-                title={disabled ? tLight("band_unavailable") : undefined}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-colors ${
-                  isActive
-                    ? "bg-teal-500/20 text-teal-200 ring-1 ring-teal-400/40"
-                    : disabled
-                    ? "bg-slate-800/30 text-slate-600 cursor-not-allowed"
-                    : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                }`}
-              >
-                {b.label}
-              </button>
-            );
-          })}
+          <div
+            role="tablist"
+            className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900/70 border border-slate-700/40 flex-shrink-0"
+          >
+            {comparison.bands.map((b) => {
+              const isActive = b.id === band;
+              const disabled = !b.available;
+              return (
+                <button
+                  key={b.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => !disabled && setBand(b.id)}
+                  disabled={disabled}
+                  title={disabled ? tLight("band_unavailable") : b.label}
+                  className={`px-3 h-7 rounded-md text-[11px] font-semibold transition-all flex items-center gap-1.5 ${
+                    isActive
+                      ? "bg-teal-500/25 text-teal-100 shadow-sm"
+                      : disabled
+                      ? "text-slate-600 cursor-not-allowed"
+                      : "text-slate-300 hover:bg-slate-800/80"
+                  }`}
+                >
+                  <span className="font-mono text-[10px] opacity-80">{BAND_GLYPH[b.id]}</span>
+                  <span className="hidden md:inline">{b.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          {compareCanRender && (
+            <div className="ml-auto hidden md:flex items-center gap-2 text-[10px] font-mono text-slate-500">
+              <span>{comparison.before_date}</span>
+              <span className="text-teal-400">⇄</span>
+              <span className="text-teal-300">{comparison.after_date}</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Stage */}
+      {/* Stage — image as hero */}
       <div
         ref={stageRef}
         className="flex-1 min-h-0 relative overflow-hidden flex items-center justify-center select-none bg-slate-950"
@@ -266,7 +293,6 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
       >
         {compareCanRender ? (
           <>
-            {/* Layer A: "after" (full) */}
             <img
               src={imageUrl("after")}
               alt={tAlert("alt_satellite")}
@@ -274,7 +300,6 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
               style={{ filter: IMG_FILTER }}
             />
-            {/* Layer B: "before", clipped to show only the left sliderPct% */}
             <img
               src={imageUrl("before")}
               alt={`${tAlert("alt_satellite")} (${tLight("before")})`}
@@ -285,28 +310,74 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
                 clipPath: `inset(0 ${100 - sliderPct}% 0 0)`,
               }}
             />
-            {/* Slider handle */}
+
+            {/* Slider — full-height vertical line + big grip */}
             <div
-              className="absolute top-0 bottom-0 z-10"
-              style={{ left: `${sliderPct}%`, transform: "translateX(-50%)", width: 40, cursor: "ew-resize" }}
+              className="absolute top-0 bottom-0 z-10 pointer-events-auto"
+              style={{ left: `${sliderPct}%`, transform: "translateX(-50%)", width: 56 }}
               onPointerDown={(e) => {
                 e.stopPropagation();
                 sliderDragRef.current = true;
                 updateSliderFromEvent(e.clientX);
               }}
             >
-              <div className="absolute top-0 bottom-0 left-1/2 w-[2px] bg-teal-300/90 shadow-[0_0_12px_rgba(94,234,212,0.6)]" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-950/85 border border-teal-300/70 flex items-center justify-center text-teal-200 backdrop-blur">
-                <span className="text-xs font-mono">‹›</span>
+              <div
+                className="absolute top-0 bottom-0 left-1/2 w-[3px] -translate-x-1/2"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(94,234,212,0.0) 0%, rgba(94,234,212,0.9) 12%, rgba(94,234,212,0.9) 88%, rgba(94,234,212,0.0) 100%)",
+                  boxShadow: "0 0 16px rgba(94,234,212,0.55)",
+                  cursor: "ew-resize",
+                }}
+              />
+              {/* Grip */}
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center text-teal-100 backdrop-blur"
+                style={{
+                  background:
+                    "radial-gradient(circle at center, rgba(13,148,136,0.95) 0%, rgba(8,15,26,0.95) 70%)",
+                  border: "1.5px solid rgba(94,234,212,0.8)",
+                  boxShadow: "0 0 24px rgba(94,234,212,0.45), inset 0 1px 0 rgba(255,255,255,0.15)",
+                  cursor: "ew-resize",
+                }}
+              >
+                <span className="text-base font-bold tracking-tighter select-none">‹ ›</span>
+              </div>
+              {/* Drag dots above/below for affordance */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-0.5">
+                  <span className="w-0.5 h-0.5 rounded-full bg-teal-300/40" />
+                  <span className="w-0.5 h-0.5 rounded-full bg-teal-300/60" />
+                  <span className="w-0.5 h-0.5 rounded-full bg-teal-300/40" />
+                </div>
+                <div className="absolute top-12 left-1/2 -translate-x-1/2 flex gap-0.5">
+                  <span className="w-0.5 h-0.5 rounded-full bg-teal-300/40" />
+                  <span className="w-0.5 h-0.5 rounded-full bg-teal-300/60" />
+                  <span className="w-0.5 h-0.5 rounded-full bg-teal-300/40" />
+                </div>
               </div>
             </div>
-            {/* Before label, left */}
-            <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-slate-950/80 backdrop-blur text-[10px] uppercase tracking-wider text-slate-100 font-mono pointer-events-none">
-              {tLight("before")} · {comparison.before_date}
+
+            {/* Before/after labels on image — big, integrated */}
+            <div className="absolute top-4 left-4 z-20 pointer-events-none">
+              <div className="px-3 py-1.5 rounded-lg bg-slate-950/85 border border-slate-700/40 backdrop-blur">
+                <div className="text-[9px] uppercase tracking-[0.18em] text-slate-400 font-semibold">
+                  {tLight("before")}
+                </div>
+                <div className="font-mono text-xs text-slate-100 mt-0.5">
+                  {comparison.before_date}
+                </div>
+              </div>
             </div>
-            {/* After label, right */}
-            <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-slate-950/80 backdrop-blur text-[10px] uppercase tracking-wider text-teal-200 font-mono pointer-events-none">
-              {tLight("after")} · {comparison.after_date}
+            <div className="absolute top-4 right-4 z-20 pointer-events-none">
+              <div className="px-3 py-1.5 rounded-lg bg-teal-500/15 border border-teal-400/40 backdrop-blur">
+                <div className="text-[9px] uppercase tracking-[0.18em] text-teal-300 font-semibold">
+                  {tLight("after")}
+                </div>
+                <div className="font-mono text-xs text-teal-100 mt-0.5">
+                  {comparison.after_date}
+                </div>
+              </div>
             </div>
           </>
         ) : (
@@ -335,35 +406,36 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
             )}
           </>
         )}
+
+        {/* Floating Claude reasoning chip on image (collapses with infoCollapsed) */}
+        {!infoCollapsed && claudeNote && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 max-w-xl w-[calc(100%-2rem)] pointer-events-none">
+            <div className="glass rounded-xl border border-teal-500/30 px-4 py-2.5 flex items-start gap-3 shadow-glow-teal">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-teal-300 font-semibold flex-shrink-0 mt-0.5">
+                {tAlert("claude_label")}
+              </span>
+              <p className="text-[12px] sm:text-sm text-slate-100 leading-snug">{claudeNote}</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Bottom */}
-      <footer
-        className="flex-shrink-0 border-t border-slate-800/60 px-6 py-4 space-y-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start gap-3">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-teal-300 font-semibold flex-shrink-0 mt-0.5">
-            {tAlert("claude_label")}
-          </span>
-          <p className="text-sm text-slate-200 leading-relaxed">{claudeNote}</p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-          <MetaCell
-            label={tLight("confidence")}
-            value={`${(alert.confidence * 100).toFixed(0)}%`}
-            accent
-          />
-          <MetaCell
+      {/* Bottom — compact stats only, dates already on image */}
+      {!infoCollapsed && (
+        <footer
+          className="flex-shrink-0 border-t border-slate-800/60 px-4 sm:px-6 py-2.5 flex items-center gap-3 overflow-x-auto gda-scroll"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <StatPill label={tLight("confidence")} value={`${(alert.confidence * 100).toFixed(0)}%`} accent />
+          <StatPill
             label={tLight("area_analyzed")}
             value={area != null ? `${area.toLocaleString()} km²` : "—"}
           />
-          <MetaCell
+          <StatPill
             label={tLight("dimensions")}
             value={sides ? `${sides[0]} × ${sides[1]} km` : "—"}
           />
-          <MetaCell
+          <StatPill
             label={tLight("bbox_wgs84")}
             value={
               alert.sentinel_bbox
@@ -372,43 +444,27 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
             }
             mono
           />
-        </div>
-
-        {compareCanRender && (
-          <div className="flex items-center gap-3 text-[11px] text-slate-400">
-            <span className="text-[10px] uppercase tracking-wider text-slate-500">
-              {tLight("compare_mode_active")}
-            </span>
-            <span className="font-mono">
-              {comparison.before_date} → {comparison.after_date}
-            </span>
-            <span className="text-slate-600">·</span>
-            <span>{tLight("compare_hint")}</span>
+          <div className="hidden md:flex ml-auto flex-shrink-0 text-[10px] text-slate-500 italic items-center gap-2">
+            {compareCanRender ? tLight("compare_hint") : tLight("hint")}
           </div>
-        )}
-
-        {!compareCanRender && (
-          <p className="text-[10px] text-slate-500 italic">{tLight("hint")}</p>
-        )}
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }
 
-function ZoomBtn({ label, onClick, wide }: { label: string; onClick: () => void; wide?: boolean }) {
+function ZoomBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`${
-        wide ? "px-3" : "w-8"
-      } h-8 rounded-md bg-slate-800/70 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition-colors`}
+      className="w-6 h-6 rounded text-slate-200 text-sm font-semibold hover:bg-slate-700 transition-colors flex items-center justify-center"
     >
       {label}
     </button>
   );
 }
 
-function MetaCell({
+function StatPill({
   label,
   value,
   accent,
@@ -420,15 +476,17 @@ function MetaCell({
   mono?: boolean;
 }) {
   return (
-    <div className="bg-slate-900/60 border border-slate-700/40 rounded-lg px-3 py-2">
-      <div className="text-[9px] uppercase tracking-wider text-slate-500">{label}</div>
-      <div
-        className={`mt-0.5 ${accent ? "text-teal-300 font-bold text-sm" : "text-slate-200"} ${
-          mono ? "font-mono text-[11px]" : ""
+    <div className="flex-shrink-0 flex items-baseline gap-2 px-3 py-1.5 rounded-lg bg-slate-900/60 border border-slate-700/40 whitespace-nowrap">
+      <span className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">
+        {label}
+      </span>
+      <span
+        className={`${accent ? "text-teal-300 font-bold text-sm" : "text-slate-200 text-xs font-semibold"} ${
+          mono ? "font-mono text-[10px]" : ""
         }`}
       >
         {value}
-      </div>
+      </span>
     </div>
   );
 }

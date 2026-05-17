@@ -344,8 +344,14 @@ async def generate_denuncia(alert_id: str):
         data.get("contamination_type", "hydrocarbon"),
         data.get("attribution", {}).get("operator_name", ""),
     )
-    denuncia_text = await generate_denuncia_text(data, legal_context)
-    pdf_bytes = render_pdf(denuncia_text, data)
+    try:
+        denuncia_text = await generate_denuncia_text(data, legal_context)
+    except Exception as e:
+        raise HTTPException(500, f"Claude API error ({type(e).__name__}): {e}")
+    try:
+        pdf_bytes = render_pdf(denuncia_text, data)
+    except Exception as e:
+        raise HTTPException(500, f"PDF render error ({type(e).__name__}): {e}")
     elapsed_ms = int((time.time() - start) * 1000)
 
     pdf_b64 = base64.b64encode(pdf_bytes).decode()

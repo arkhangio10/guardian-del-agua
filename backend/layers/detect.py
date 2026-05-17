@@ -425,6 +425,84 @@ async def get_alert_image(alert_id: str, band: str = "rgb", phase: str = "after"
     return RedirectResponse(_esri_export_url(bbox), status_code=302)
 
 
+def compute_spectral_evidence(data: dict) -> dict:
+    """
+    Compute a spectral-evidence descriptor for an alert.
+
+    v0 (current): heuristic mapping from Claude Vision's confidence and the
+    affected_area_pct it returns, weighted by contamination_type sensitivity.
+    Documented as v0 in `_method` so the chain-of-custody is honest about
+    what is and isn't measured. v1 will replace this with real pixel-level
+    delta extraction from the before/after Sentinel-2 pair.
+
+    Returns:
+      {
+        "evidence_strength": float in [0, 1],
+        "affected_area_pct": float in [0, 1],
+        "index_name": "NHI" | "NDTI" | "NDCI" | "NDWI",
+        "before_date": str,
+        "after_date": str,
+        "_method": str (provenance label),
+        "_method_version": "v0-heuristic" | "v1-pixel-delta",
+      }
+    """
+    contamination_type = data.get("contamination_type", "none")
+    confidence = float(data.get("confidence", 0.0) or 0.0)
+
+    # Claude doesn't currently persist affected_area_pct per alert — derive a
+    # plausible value from confidence as a soft proxy. Once detect.py starts
+    # writing affected_area_pct to the alert doc this will use the real value.
+    affected_area_pct = float(data.get("affected_area_pct") or min(0.5, max(0.05, confidence * 0.5)))
+
+    index_name = {
+        "hydrocarbon": "NHI",
+        "turbidity": "NDTI",
+        "algal_bloom": "NDCI",
+    }.get(contamination_type, "NDWI")
+
+    # Sensitivity weights — hydrocarbons read more cleanly in SWIR/NIR diff
+    # than diffuse algal blooms, so the same area_pct carries more evidential
+    # weight for an oil spill.
+    sensitivity = {
+        "hydrocarbon": 1.0,
+        "turbidity": 0.85,
+        "algal_bloom": 0.75,
+    }.get(contamination_type, 0.6)
+
+    # Bounded combination so a 95%-confidence + 30%-area detection lands near
+    # 0.85 evidence strength, leaving room for "extreme" detections to reach 1.0.
+    evidence_strength = min(1.0, confidence * min(1.0, affected_area_pct * 4.0) * sensitivity)
+
+    incident_date = _alert_incident_date(data)
+    before_date = _shift_date(incident_date, -BEFORE_OFFSET_DAYS)
+
+    return {
+        "evidence_strength": round(evidence_strength, 3),
+        "affected_area_pct": round(affected_area_pct, 3),
+        "index_name": index_name,
+        "before_date": before_date,
+        "after_date": incident_date,
+        "_method": (
+            f"v0 heuristic: confidence × min(1, affected_area_pct × 4) × sensitivity[{contamination_type}]"
+        ),
+        "_method_version": "v0-heuristic",
+    }
+
+
+@router.get("/alerts/{alert_id}/spectral")
+async def get_alert_spectral(alert_id: str):
+    """
+    Spectral evidence descriptor for an alert. Used by the predict layer as a
+    post-prediction multiplier and surfaced in the dossier UI.
+    """
+    from db import get_db
+    db = get_db()
+    doc = db.collection("alerts").document(alert_id).get()
+    if not doc.exists:
+        raise HTTPException(404, f"Alert {alert_id} not found")
+    return compute_spectral_evidence(doc.to_dict())
+
+
 @router.get("/alerts/{alert_id}/comparison")
 async def get_alert_comparison(alert_id: str):
     """

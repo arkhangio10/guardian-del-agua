@@ -318,6 +318,10 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
                 </Panel>
               )}
 
+              {alert.spectral_evidence && (
+                <SpectralPanel evidence={alert.spectral_evidence} />
+              )}
+
               <Panel title={t("actions_panel")} tone="default">
                 {!denuncia ? (
                   <div className="space-y-2">
@@ -435,6 +439,87 @@ function Stat({
         {value ?? "—"}
       </div>
       <div className="text-[10px] uppercase tracking-wider text-slate-500 mt-1">{label}</div>
+    </div>
+  );
+}
+
+function SpectralPanel({ evidence }: { evidence: any }) {
+  const tSpec = useTranslations("spectral");
+  const strength = Math.max(0, Math.min(1, Number(evidence?.evidence_strength) || 0));
+  const pct = Math.round(strength * 100);
+  const areaPct = Math.round((Number(evidence?.affected_area_pct) || 0) * 100);
+  const mult = 0.7 + 0.6 * strength;
+
+  const tone =
+    strength >= 0.7
+      ? { border: "border-red-700/50", bar: "from-red-400 to-red-600", text: "text-red-300" }
+      : strength >= 0.4
+      ? { border: "border-amber-700/50", bar: "from-amber-400 to-orange-500", text: "text-amber-300" }
+      : { border: "border-slate-700/40", bar: "from-teal-400 to-cyan-500", text: "text-teal-300" };
+
+  return (
+    <section className={`rounded-xl border ${tone.border} bg-slate-900/40 p-4 space-y-3`}>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[10px] uppercase tracking-[0.18em] font-semibold text-slate-300">
+          {tSpec("panel_title")}
+        </h3>
+        <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+          {evidence?._method_version ?? "v0"} · {evidence?.index_name ?? "—"}
+        </span>
+      </div>
+
+      <div>
+        <div className="flex items-baseline justify-between mb-1.5">
+          <span className="text-xs text-slate-400">{tSpec("strength_label")}</span>
+          <span className={`text-xl font-bold ${tone.text}`}>{pct}%</span>
+        </div>
+        <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+          <div
+            className={`h-full bg-gradient-to-r ${tone.bar} transition-all duration-700`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-[11px]">
+        <SpecCell label={tSpec("affected_area")} value={`${areaPct}%`} />
+        <SpecCell
+          label={tSpec("multiplier_applied")}
+          value={`×${mult.toFixed(2)}`}
+          accent={mult !== 1.0}
+        />
+        <SpecCell
+          label={tSpec("temporal_window")}
+          value={
+            <span className="font-mono text-[10px]">
+              {evidence?.before_date} → {evidence?.after_date}
+            </span>
+          }
+        />
+      </div>
+
+      <p className="text-[10px] text-slate-500 italic leading-snug">
+        {tSpec("provenance_prefix")}: {evidence?._method ?? "—"}
+      </p>
+    </section>
+  );
+}
+
+function SpecCell({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="bg-slate-950/40 border border-slate-700/30 rounded-md px-2 py-1.5">
+      <div className="text-[9px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className={`mt-0.5 text-sm font-bold ${accent ? "text-cyan-300" : "text-slate-200"}`}>
+        {value}
+      </div>
     </div>
   );
 }

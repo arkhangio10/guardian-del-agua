@@ -115,6 +115,24 @@ async def predict_impact_endpoint(alert_id: str):
         fish_pct = 80.0
         recovery = 180
 
+    # Spectral-evidence post-prediction adjustment. The base XGBoost model was
+    # not trained with spectral features, so we apply the spectral signal as a
+    # bounded multiplier on the impact estimates. Documented in feature_provenance
+    # so the dossier PDF can cite where the adjustment came from.
+    spectral = None
+    try:
+        from layers.detect import compute_spectral_evidence
+        spectral = compute_spectral_evidence(data)
+        # Map evidence_strength [0,1] → multiplier [0.7, 1.3]
+        mult = 0.7 + 0.6 * float(spectral.get("evidence_strength", 0.0))
+        people_7d = int(people_7d * mult)
+        people_30d = int(people_30d * mult)
+        # Fish dieoff scales sub-linearly (already capped at 100%); recovery scales linearly.
+        fish_pct = max(0.0, min(100.0, fish_pct * (0.85 + 0.3 * float(spectral.get("evidence_strength", 0.0)))))
+        recovery = max(1, int(recovery * mult))
+    except Exception as exc:
+        print(f"[WARN] spectral adjustment skipped: {exc}")
+
     prediction = ImpactPrediction(
         people_affected_7d=people_7d,
         people_affected_30d=people_30d,
@@ -145,7 +163,12 @@ async def predict_impact_endpoint(alert_id: str):
     }
     if intervals is not None:
         update_payload["predictions_intervals"] = intervals
+    if spectral is not None:
+        update_payload["spectral_evidence"] = spectral
 
     db.collection("alerts").document(alert_id).update(update_payload)
 
-    return prediction.model_dump()
+    response = prediction.model_dump()
+    if spectral is not None:
+        response["spectral_evidence"] = spectral
+    return response

@@ -102,6 +102,14 @@
     "compare_mode_active": "Comparación temporal activa",
     "compare_hint": "Arrastrá el control para revelar el antes vs. después"
   },
+  "spectral": {
+    "panel_title": "Evidencia espectral",
+    "strength_label": "Fuerza de evidencia",
+    "affected_area": "Área afectada",
+    "multiplier_applied": "Ajuste aplicado",
+    "temporal_window": "Ventana temporal",
+    "provenance_prefix": "Método"
+  },
   "language": {
     "switcher_aria": "Cambiar idioma",
     "es": "Español",

@@ -102,6 +102,14 @@
     "compare_mode_active": "Temporal comparison active",
     "compare_hint": "Drag the handle to reveal before vs. after"
   },
+  "spectral": {
+    "panel_title": "Spectral evidence",
+    "strength_label": "Evidence strength",
+    "affected_area": "Affected area",
+    "multiplier_applied": "Adjustment applied",
+    "temporal_window": "Temporal window",
+    "provenance_prefix": "Method"
+  },
   "language": {
     "switcher_aria": "Change language",
     "es": "Spanish",

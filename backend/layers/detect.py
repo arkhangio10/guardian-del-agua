@@ -57,16 +57,32 @@ def _esri_export_url(bbox: list[float], size: int = 512) -> str:
 
 # ---------- Evalscripts ----------
 
+# All visual evalscripts use mosaicking: ORBIT — Sentinel Hub returns an array
+# of all scenes within the requested time window (ordered by mosaickingOrder).
+# evaluatePixel iterates the array and picks the first scene where dataMask=1,
+# which fills gaps between satellite passes that would otherwise render as a
+# perfect black rectangle (Amazon swath edges + heavy cloud cover are an
+# everyday occurrence). When no scene has data for that pixel, we paint a
+# distinct dark-blue (40,60,90) so the user knows it's "no coverage", not a
+# broken request.
+
 EVALSCRIPT_RGB = """
 //VERSION=3
 function setup() {
   return {
-    input: ["B04", "B03", "B02"],
-    output: { bands: 3, sampleType: "UINT8" }
+    input: [{ bands: ["B04", "B03", "B02", "dataMask"] }],
+    output: { bands: 3, sampleType: "UINT8" },
+    mosaicking: "ORBIT"
   };
 }
-function evaluatePixel(s) {
-  return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
+function evaluatePixel(samples) {
+  for (var i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (s.dataMask === 1) {
+      return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
+    }
+  }
+  return [40, 60, 90];
 }
 """
 
@@ -76,12 +92,19 @@ EVALSCRIPT_NIR = """
 //VERSION=3
 function setup() {
   return {
-    input: ["B08", "B04", "B03"],
-    output: { bands: 3, sampleType: "UINT8" }
+    input: [{ bands: ["B08", "B04", "B03", "dataMask"] }],
+    output: { bands: 3, sampleType: "UINT8" },
+    mosaicking: "ORBIT"
   };
 }
-function evaluatePixel(s) {
-  return [s.B08 * 3.0 * 255, s.B04 * 3.5 * 255, s.B03 * 3.5 * 255];
+function evaluatePixel(samples) {
+  for (var i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (s.dataMask === 1) {
+      return [s.B08 * 3.0 * 255, s.B04 * 3.5 * 255, s.B03 * 3.5 * 255];
+    }
+  }
+  return [40, 60, 90];
 }
 """
 
@@ -91,18 +114,23 @@ EVALSCRIPT_HYDROCARBON = """
 //VERSION=3
 function setup() {
   return {
-    input: ["B04", "B03", "B02", "B08", "B11"],
-    output: { bands: 3, sampleType: "UINT8" }
+    input: [{ bands: ["B04", "B03", "B02", "B08", "B11", "dataMask"] }],
+    output: { bands: 3, sampleType: "UINT8" },
+    mosaicking: "ORBIT"
   };
 }
-function evaluatePixel(s) {
-  var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
-  var nhi  = (s.B08 - s.B11) / Math.max(s.B08 + s.B11, 0.0001);
-  // Water (ndwi > 0.2) AND anomalous SWIR signature -> red marker.
-  if (ndwi > 0.2 && nhi > 0.2) {
-    return [255, 60, 60];
+function evaluatePixel(samples) {
+  for (var i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (s.dataMask !== 1) continue;
+    var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
+    var nhi  = (s.B08 - s.B11) / Math.max(s.B08 + s.B11, 0.0001);
+    if (ndwi > 0.2 && nhi > 0.2) {
+      return [255, 60, 60];
+    }
+    return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
   }
-  return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
+  return [40, 60, 90];
 }
 """
 
@@ -110,18 +138,24 @@ EVALSCRIPT_TURBIDITY = """
 //VERSION=3
 function setup() {
   return {
-    input: ["B04", "B03", "B02", "B08"],
-    output: { bands: 3, sampleType: "UINT8" }
+    input: [{ bands: ["B04", "B03", "B02", "B08", "dataMask"] }],
+    output: { bands: 3, sampleType: "UINT8" },
+    mosaicking: "ORBIT"
   };
 }
-function evaluatePixel(s) {
-  var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
-  var ndti = (s.B04 - s.B03) / Math.max(s.B04 + s.B03, 0.0001);
-  if (ndwi > 0.1 && ndti > 0.05) {
-    var k = Math.min(ndti * 2.0, 1.0);
-    return [220 + 35 * k, 110 + 40 * (1 - k), 40];
+function evaluatePixel(samples) {
+  for (var i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (s.dataMask !== 1) continue;
+    var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
+    var ndti = (s.B04 - s.B03) / Math.max(s.B04 + s.B03, 0.0001);
+    if (ndwi > 0.1 && ndti > 0.05) {
+      var k = Math.min(ndti * 2.0, 1.0);
+      return [220 + 35 * k, 110 + 40 * (1 - k), 40];
+    }
+    return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
   }
-  return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
+  return [40, 60, 90];
 }
 """
 
@@ -129,18 +163,24 @@ EVALSCRIPT_ALGAL = """
 //VERSION=3
 function setup() {
   return {
-    input: ["B04", "B03", "B02", "B05", "B08"],
-    output: { bands: 3, sampleType: "UINT8" }
+    input: [{ bands: ["B04", "B03", "B02", "B05", "B08", "dataMask"] }],
+    output: { bands: 3, sampleType: "UINT8" },
+    mosaicking: "ORBIT"
   };
 }
-function evaluatePixel(s) {
-  var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
-  var ndci = (s.B05 - s.B04) / Math.max(s.B05 + s.B04, 0.0001);
-  if (ndwi > 0.1 && ndci > 0.02) {
-    var k = Math.min(ndci * 5.0, 1.0);
-    return [60, 200 + 55 * k, 90];
+function evaluatePixel(samples) {
+  for (var i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (s.dataMask !== 1) continue;
+    var ndwi = (s.B03 - s.B08) / Math.max(s.B03 + s.B08, 0.0001);
+    var ndci = (s.B05 - s.B04) / Math.max(s.B05 + s.B04, 0.0001);
+    if (ndwi > 0.1 && ndci > 0.02) {
+      var k = Math.min(ndci * 5.0, 1.0);
+      return [60, 200 + 55 * k, 90];
+    }
+    return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
   }
-  return [s.B04 * 3.5 * 255, s.B03 * 3.5 * 255, s.B02 * 3.5 * 255];
+  return [40, 60, 90];
 }
 """
 
@@ -459,16 +499,18 @@ async def fetch_sentinel_image(
     evalscript: str | None = None,
     size: int = DEFAULT_IMAGE_SIZE,
     max_cloud: int = MAX_CLOUD_VISUAL,
-    window_days: int = 15,
+    window_days: int = 20,
 ) -> bytes:
     """
     Fetch a Sentinel-2 L2A render for the given bbox + date.
 
-    Defaults: 1024×1024 at cloud-30. Sentinel-2 is 10 m/px native; a 55 km
-    bbox renders ~54 m/px at this size and progressively sharper as the user
-    zooms (the /image endpoint crops the bbox toward the centroid before
-    re-requesting). Spectral/grayscale callers pass size=ANALYSIS_IMAGE_SIZE
-    (512) and max_cloud=MAX_CLOUD_INDEX (70) to keep pixel-delta v1 robust.
+    Defaults: 1024×1024 at cloud-30, ±20-day window. Visual evalscripts use
+    mosaicking="ORBIT" + dataMask iteration to fill gaps between satellite
+    passes — the previous single-pass setup left perfect-rectangle black
+    gaps when the bbox straddled a swath edge (everyday Amazon issue). The
+    20-day window gives ORBIT mosaicking 4-6 candidate passes to draw from.
+    Spectral/grayscale callers pass size=ANALYSIS_IMAGE_SIZE (512) and
+    max_cloud=MAX_CLOUD_INDEX (70) to keep pixel-delta v1 robust.
     """
     token = await get_sentinel_token()
     # Sentinel-2 revisits every 5 days; Amazonia is heavily clouded.

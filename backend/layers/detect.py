@@ -258,8 +258,15 @@ async def compute_spectral_evidence_real(data: dict) -> dict | None:
     before_date = _shift_date(incident_date, -BEFORE_OFFSET_DAYS)
 
     try:
-        before_png = await fetch_sentinel_image(bbox, before_date, evalscript=evalscript)
-        after_png = await fetch_sentinel_image(bbox, incident_date, evalscript=evalscript)
+        # Index analysis uses a more permissive cloud threshold — partial
+        # cloud cover is acceptable when we're computing pixel statistics
+        # over masked water, and we'd rather have the pair than perfect skies.
+        before_png = await fetch_sentinel_image(
+            bbox, before_date, evalscript=evalscript, max_cloud=70
+        )
+        after_png = await fetch_sentinel_image(
+            bbox, incident_date, evalscript=evalscript, max_cloud=70
+        )
     except Exception as exc:
         print(f"[WARN] spectral pixel fetch failed: {exc}", flush=True)
         return None
@@ -343,13 +350,26 @@ async def fetch_sentinel_image(
     bbox: list[float],
     date: str,
     evalscript: str | None = None,
+    size: int = 1024,
+    max_cloud: int = 30,
+    window_days: int = 15,
 ) -> bytes:
+    """
+    Fetch a Sentinel-2 L2A render for the given bbox + date.
+
+    Defaults bumped from the previous 512×512/cloud-70 configuration to
+    1024×1024/cloud-30 — the 512² output was discarding ~11× of native
+    resolution (Sentinel-2 is 10 m/px, bbox ~0.5° ≈ 55 km → 107 m/px at
+    512 vs 27 m/px at 1024). Lower cloud threshold means sharper RGB at
+    the cost of slightly less temporal availability; the spectral/grayscale
+    scripts pass max_cloud=70 to keep the pixel-delta v1 robust.
+    """
     token = await get_sentinel_token()
     # Sentinel-2 revisits every 5 days; Amazonia is heavily clouded.
-    # Search ±15 days around the target date and let Sentinel Hub pick the least-cloudy pass.
+    # Search ±window_days around the target date and let Sentinel Hub pick the least-cloudy pass.
     target_dt = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    date_from = (target_dt - timedelta(days=15)).strftime("%Y-%m-%dT00:00:00Z")
-    date_to = (target_dt + timedelta(days=15)).strftime("%Y-%m-%dT23:59:59Z")
+    date_from = (target_dt - timedelta(days=window_days)).strftime("%Y-%m-%dT00:00:00Z")
+    date_to = (target_dt + timedelta(days=window_days)).strftime("%Y-%m-%dT23:59:59Z")
 
     payload = {
         "input": {
@@ -362,7 +382,7 @@ async def fetch_sentinel_image(
                     "type": "sentinel-2-l2a",
                     "dataFilter": {
                         "timeRange": {"from": date_from, "to": date_to},
-                        "maxCloudCoverage": 70,
+                        "maxCloudCoverage": max_cloud,
                         "mosaickingOrder": "leastCC",
                     },
                 }
@@ -370,13 +390,13 @@ async def fetch_sentinel_image(
         },
         "evalscript": evalscript or EVALSCRIPT_RGB,
         "output": {
-            "width": 512,
-            "height": 512,
+            "width": size,
+            "height": size,
             "responses": [{"identifier": "default", "format": {"type": "image/png"}}],
         },
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=90.0) as client:
         resp = await client.post(
             SENTINEL_PROCESS_URL,
             headers={
@@ -536,27 +556,43 @@ async def get_alert(alert_id: str):
 
 
 @router.get("/alerts/{alert_id}/image")
-async def get_alert_image(alert_id: str, band: str = "rgb", phase: str = "after"):
+async def get_alert_image(
+    alert_id: str,
+    band: str = "rgb",
+    phase: str = "after",
+    date: str | None = None,
+    zoom_pct: int = 100,
+    refresh: bool = False,
+):
     """
     Return a satellite image of the alert's bbox.
 
     Query params:
     - band:  rgb (true-color, default) | nir (false-color NIR) | index (contamination-specific overlay)
     - phase: after (incident date, default) | before (incident date - 45 days, pre-baseline)
+    - date:  YYYY-MM-DD override. When provided, fetches imagery for this exact
+             date instead of the alert's incident date. Lets users see "the same
+             location today" without creating a new alert.
+    - zoom_pct: 25–100. Crops the bbox to the center N% before fetching, giving
+             a true higher-resolution zoom (10 m/px native instead of CSS scale).
+             100 = full bbox (default). 50 = 2× linear zoom (4× area zoom).
+    - refresh: when true, bypasses the in-memory cache and forces a fresh fetch.
 
     Resolution order:
     - If alert.satellite_image_url is set in DB → redirect to that URL (phase=after, band=rgb only)
     - Else if Sentinel Hub credentials configured → fetch & return Sentinel-2 PNG
-    - Else → redirect to free ESRI World Imagery export (only valid for phase=after / band=rgb)
+    - Else → redirect to free ESRI World Imagery export
     """
     band = band if band in ("rgb", "nir", "index") else "rgb"
     phase = phase if phase in ("before", "after") else "after"
+    zoom_pct = max(25, min(100, int(zoom_pct or 100)))
 
-    cache_key = f"{alert_id}|{band}|{phase}"
-    cached = _image_cache.get(cache_key)
-    if cached and datetime.now(timezone.utc) < cached[1]:
-        return Response(content=cached[0], media_type="image/png",
-                        headers={"Cache-Control": "public, max-age=3600"})
+    cache_key = f"{alert_id}|{band}|{phase}|{date or ''}|{zoom_pct}"
+    if not refresh:
+        cached = _image_cache.get(cache_key)
+        if cached and datetime.now(timezone.utc) < cached[1]:
+            return Response(content=cached[0], media_type="image/png",
+                            headers={"Cache-Control": "public, max-age=3600"})
 
     from db import get_db
     db = get_db()
@@ -565,7 +601,7 @@ async def get_alert_image(alert_id: str, band: str = "rgb", phase: str = "after"
         raise HTTPException(404, f"Alert {alert_id} not found")
     data = doc.to_dict()
 
-    if data.get("satellite_image_url") and band == "rgb" and phase == "after":
+    if data.get("satellite_image_url") and band == "rgb" and phase == "after" and not date and zoom_pct == 100:
         return RedirectResponse(data["satellite_image_url"], status_code=302)
 
     bbox = data.get("sentinel_bbox")
@@ -574,20 +610,42 @@ async def get_alert_image(alert_id: str, band: str = "rgb", phase: str = "after"
 
     contamination_type = data.get("contamination_type", "none")
     incident_date = _alert_incident_date(data)
-    target_date = _shift_date(incident_date, -BEFORE_OFFSET_DAYS) if phase == "before" else incident_date
+    if date:
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+            target_date = date
+        except ValueError:
+            raise HTTPException(400, f"Invalid date format: {date}. Use YYYY-MM-DD.")
+    else:
+        target_date = _shift_date(incident_date, -BEFORE_OFFSET_DAYS) if phase == "before" else incident_date
+
+    # True zoom: crop bbox toward the centroid before requesting Sentinel.
+    # This makes each pixel cover a smaller real-world area, giving genuine detail
+    # instead of CSS-amplifying a downsampled PNG.
+    if zoom_pct < 100:
+        lon_min, lat_min, lon_max, lat_max = bbox
+        cx = (lon_min + lon_max) / 2
+        cy = (lat_min + lat_max) / 2
+        half_w = (lon_max - lon_min) * (zoom_pct / 100.0) / 2
+        half_h = (lat_max - lat_min) * (zoom_pct / 100.0) / 2
+        bbox = [cx - half_w, cy - half_h, cx + half_w, cy + half_h]
+
     evalscript = _resolve_evalscript(band, contamination_type)
+    # RGB benefits from a strict cloud threshold for crisp visuals; spectral
+    # overlays tolerate more cloud since water masking filters them out anyway.
+    max_cloud = 30 if band == "rgb" else 70
 
     if settings.sentinel_hub_client_id and settings.sentinel_hub_client_secret:
         try:
-            png_bytes = await fetch_sentinel_image(bbox, target_date, evalscript=evalscript)
+            png_bytes = await fetch_sentinel_image(
+                bbox, target_date, evalscript=evalscript, max_cloud=max_cloud
+            )
             _image_cache[cache_key] = (png_bytes, datetime.now(timezone.utc) + _IMAGE_CACHE_TTL)
             return Response(content=png_bytes, media_type="image/png",
                             headers={"Cache-Control": "public, max-age=3600"})
         except Exception as e:
-            print(f"[WARN] Sentinel Hub fetch failed for {alert_id} (band={band} phase={phase}): {e}", flush=True)
+            print(f"[WARN] Sentinel Hub fetch failed for {alert_id} (band={band} phase={phase} date={target_date}): {e}", flush=True)
 
-    # Fallback: ESRI export only renders true-color "after". For other combinations,
-    # serve the same ESRI image so the UI degrades gracefully.
     return RedirectResponse(_esri_export_url(bbox), status_code=302)
 
 

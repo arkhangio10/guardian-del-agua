@@ -22,13 +22,17 @@ DEMO_ALERTS = [
     # Demo showcase principal — bbox oficial documentado en CLAUDE.md.
     # Cuatro Cuencas / Oleoducto Norperuano · Tramo I. La atribución cae a
     # Petroperú (presunto responsable, sujeto a verificación in situ).
+    # Dates rolled forward to 2025-2026 so Sentinel-2 imagery is recent —
+    # the bboxes are real concession locations, so fetching Sentinel for
+    # these recent dates returns actual satellite data of those operators
+    # (regardless of whether a real incident occurred on that date).
     {
         "alert_id": "demo-alert-001",
-        "detected_at": "2024-03-15T14:32:00",
+        "detected_at": "2026-04-15T14:32:00",
         "contamination_type": "hydrocarbon",
         "confidence": 0.92,
         "sentinel_bbox": [-76.1, -3.9, -75.6, -3.5],
-        "sentinel_image_id": "S2_20240315_ONP_CuatroCuencas",
+        "sentinel_image_id": "S2_20260415_ONP_CuatroCuencas",
         "satellite_image_url": None,
         "status": "published",
         "region_label": "Cuatro Cuencas (Pastaza/Corrientes/Tigre/Marañón)",
@@ -51,11 +55,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-002",
-        "detected_at": "2024-01-22T09:15:00",
+        "detected_at": "2026-02-22T09:15:00",
         "contamination_type": "hydrocarbon",
         "confidence": 0.88,
         "sentinel_bbox": [-75.8, -4.2, -75.3, -3.8],
-        "sentinel_image_id": "S2_20240122_ONP_Andoas",
+        "sentinel_image_id": "S2_20260222_ONP_Andoas",
         "satellite_image_url": None,
         "status": "act_generated",
         "attribution": {
@@ -77,11 +81,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-003",
-        "detected_at": "2023-11-05T07:50:00",
+        "detected_at": "2025-11-05T07:50:00",
         "contamination_type": "turbidity",
         "confidence": 0.81,
         "sentinel_bbox": [-74.9, -6.2, -74.2, -5.9],
-        "sentinel_image_id": "S2_20231105_L095",
+        "sentinel_image_id": "S2_20251105_L095",
         "satellite_image_url": None,
         "status": "predicted",
         "attribution": {
@@ -103,11 +107,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-004",
-        "detected_at": "2023-08-18T11:20:00",
+        "detected_at": "2025-08-18T11:20:00",
         "contamination_type": "algal_bloom",
         "confidence": 0.76,
         "sentinel_bbox": [-75.5, -4.8, -75.0, -4.3],
-        "sentinel_image_id": "S2_20230818_NP14B",
+        "sentinel_image_id": "S2_20250818_NP14B",
         "satellite_image_url": None,
         "status": "attributed",
         "attribution": {
@@ -122,11 +126,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-005",
-        "detected_at": "2022-09-11T16:05:00",
+        "detected_at": "2024-09-11T16:05:00",
         "contamination_type": "hydrocarbon",
         "confidence": 0.95,
         "sentinel_bbox": [-77.6, -4.0, -77.1, -3.6],
-        "sentinel_image_id": "S2_20220911_ONP_SPILL",
+        "sentinel_image_id": "S2_20240911_ONP_SPILL",
         "satellite_image_url": None,
         "status": "published",
         "attribution": {

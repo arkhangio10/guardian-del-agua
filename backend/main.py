@@ -6,7 +6,7 @@ print(f"[bootstrap] python={sys.version.split()[0]}", flush=True)
 from contextlib import asynccontextmanager
 print("[bootstrap] stdlib imports done", flush=True)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 print("[bootstrap] fastapi imports done", flush=True)
@@ -124,10 +124,35 @@ async def run_full_pipeline(req: PipelineRequest):
         return {"detected": False, "message": "No contamination detected above confidence threshold"}
 
     alert_id = detect_resp.alert_id
-    await attribute_alert_endpoint(alert_id)
+    db = get_db()
+
+    # If ATTRIBUTE can't link the detection to a registered concession/pipeline
+    # (bbox falls outside every polygon in norperuana.geojson), the alert is
+    # legally useless for the dossier flow — no responsible operator to denounce
+    # to OEFA. Drop the freshly-created alert document so it doesn't leak into
+    # the leaderboard, the map, or future /detect/alerts queries as an "orphan".
+    try:
+        await attribute_alert_endpoint(alert_id)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            db.collection("alerts").document(alert_id).delete()
+            print(
+                f"[pipeline] Rolled back alert {alert_id}: bbox outside all known concession polygons",
+                flush=True,
+            )
+            return {
+                "detected": True,
+                "attributed": False,
+                "message": (
+                    "Contamination detected but bbox falls outside all known concession "
+                    "polygons (norperuana.geojson). Alert was rolled back. Expand the "
+                    "GeoJSON dataset to cover this region before re-running."
+                ),
+            }
+        raise
+
     await predict_impact_endpoint(alert_id)
 
-    db = get_db()
     doc = db.collection("alerts").document(alert_id).get()
     return {"alert_id": alert_id, "pipeline": "complete", "alert": doc.to_dict()}
 
@@ -158,3 +183,53 @@ async def wipe_demo_alerts(confirm: str = ""):
 
     print(f"[admin] wiped {len(deleted)} demo alerts: {deleted}", flush=True)
     return {"wiped": True, "count": len(deleted), "alert_ids": deleted}
+
+
+@app.post("/admin/wipe-orphans", tags=["Admin"])
+async def wipe_orphan_alerts(confirm: str = ""):
+    """
+    Delete every Firestore alert that has no usable attribution. An "orphan" is
+    a doc where:
+      - sentinel_bbox is missing, not a 4-element list, or contains non-finite values
+      - attribution is missing, or attribution.operator_name is empty/blank
+
+    These slip into Firestore when /pipeline/run hit a bbox outside the
+    concession dataset before the rollback fix was deployed. They render in the
+    map sidebar as "Sin atribución" with no marker.
+
+    Requires confirm=YES_WIPE_ORPHANS. Returns the list of deleted IDs and
+    the reason each was deleted.
+    """
+    if confirm != "YES_WIPE_ORPHANS":
+        return {
+            "wiped": False,
+            "message": "Pass ?confirm=YES_WIPE_ORPHANS to actually delete orphan alerts.",
+        }
+
+    from db import get_db
+    db = get_db()
+    deleted: list[dict] = []
+    for doc in db.collection("alerts").stream():
+        # Never touch demo seed docs from this endpoint — use /admin/wipe-demos.
+        if doc.id.startswith("demo-alert-"):
+            continue
+        data = doc.to_dict() or {}
+        bbox = data.get("sentinel_bbox")
+        op = (data.get("attribution") or {}).get("operator_name") or ""
+        bbox_ok = (
+            isinstance(bbox, list)
+            and len(bbox) == 4
+            and all(isinstance(v, (int, float)) for v in bbox)
+        )
+        op_ok = isinstance(op, str) and op.strip() != ""
+        if not bbox_ok or not op_ok:
+            reasons = []
+            if not bbox_ok:
+                reasons.append("invalid_bbox")
+            if not op_ok:
+                reasons.append("no_operator")
+            doc.reference.delete()
+            deleted.append({"alert_id": doc.id, "reasons": reasons})
+
+    print(f"[admin] wiped {len(deleted)} orphan alerts", flush=True)
+    return {"wiped": True, "count": len(deleted), "deleted": deleted}

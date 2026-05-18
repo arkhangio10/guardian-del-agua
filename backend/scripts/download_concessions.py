@@ -42,6 +42,7 @@ CONCESSIONS = [
         "properties": {
             "operator_name": "Frontera Energy Perú (ex-Petroperú / Pacific Stratus)",
             "concession_id": "Lote-192",
+            "feature_type": "concession",
             "osinergmin_id": "OSI-192-2016",
             "prior_sanctions": 474,
             "legal_status": "active",
@@ -92,6 +93,7 @@ CONCESSIONS = [
         "properties": {
             "operator_name": "Pluspetrol Norte S.A.",
             "concession_id": "Lote-8",
+            "feature_type": "concession",
             "osinergmin_id": "OSI-008-1994",
             "prior_sanctions": 92,
             "legal_status": "active",
@@ -134,6 +136,7 @@ CONCESSIONS = [
         "properties": {
             "operator_name": "Pluspetrol Norte S.A.",
             "concession_id": "Lote-95",
+            "feature_type": "concession",
             "osinergmin_id": "OSI-095-2000",
             "prior_sanctions": 38,
             "legal_status": "active",
@@ -168,6 +171,214 @@ CONCESSIONS = [
                 [-75.60, -4.20],
                 [-75.55, -3.95],
                 [-75.40, -3.80],  # close ring
+            ]]
+        }
+    },
+    # --------------------------------------------------------------------
+    # ONP — Oleoducto Norperuano (Petroperú).
+    # Linear infrastructure modeled as a 5-km-wide buffer polygon along the
+    # actual pipeline route. Pipeline operator bears direct liability under
+    # Ley 26221 Art. 8 — the PIPELINE_MULTIPLIER in attribute.py routes
+    # right-of-way contamination to Petroperú over the underlying lots.
+    # --------------------------------------------------------------------
+    {
+        "type": "Feature",
+        "properties": {
+            "operator_name": "Petroperú S.A.",
+            "concession_id": "ONP-Tramo-I",
+            "feature_type": "pipeline",
+            "osinergmin_id": "OSI-ONP-1974",
+            "prior_sanctions": 474,
+            "legal_status": "active",
+            "parent_company": "Estado Peruano (100%)",
+            "area_ha": 28000,
+            "_source": "OEFA fiscalizaciones ONP 2013-2023; Mongabay Latam ONP map series; Osinergmin Res. 071-2018",
+            "_districts": "Saramuro, Cuninico, Morona, Andoas, Datem del Marañón",
+            "_river_basin": "Marañón medio + Pastaza inferior (cruces fluviales)",
+            "_notes": (
+                "Tramo I del Oleoducto Norperuano: Saramuro (Estación 1) → Andoas "
+                "(Estación 5), ~250 km. Modelado como buffer de ~5 km alrededor del "
+                "trazado real publicado por Petroperú/OEFA. 91 derrames documentados "
+                "2013-2023 (Mongabay Latam, OEFA enforcement records)."
+            ),
+        },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                # Trazado SO→NE (Saramuro → Andoas) lado sur del buffer
+                [-77.40, -3.10],
+                [-77.05, -3.25],
+                [-76.65, -3.45],
+                [-76.20, -3.65],
+                [-75.80, -3.80],
+                [-75.40, -3.85],
+                [-75.05, -3.80],
+                # Lado norte del buffer (vuelta hacia el SO)
+                [-75.00, -3.70],
+                [-75.35, -3.75],
+                [-75.75, -3.70],
+                [-76.15, -3.55],
+                [-76.60, -3.35],
+                [-77.00, -3.15],
+                [-77.40, -3.00],
+                [-77.40, -3.10],  # close ring
+            ]]
+        }
+    },
+    {
+        "type": "Feature",
+        "properties": {
+            "operator_name": "Petroperú S.A.",
+            "concession_id": "ONP-Tramo-II",
+            "feature_type": "pipeline",
+            "osinergmin_id": "OSI-ONP-1974",
+            "prior_sanctions": 474,
+            "legal_status": "active",
+            "parent_company": "Estado Peruano (100%)",
+            "area_ha": 35000,
+            "_source": "OEFA fiscalizaciones ONP 2013-2023; Petroperú Memoria Anual 2022; ANA cruces fluviales",
+            "_districts": "Andoas, Manseriche, Imaza, Bagua",
+            "_river_basin": "Marañón alto + cabecera Chiriaco/Imaza",
+            "_notes": (
+                "Tramo II del Oleoducto Norperuano: Andoas (Est. 5) → Bayóvar, cruzando "
+                "la cordillera. Sólo se incluye el segmento amazónico (Andoas → salida "
+                "de Loreto, ~150 km). Mismo operador, mismas reglas de atribución que "
+                "Tramo I. Derrame ríos Chiriaco/Marañón 2016 ocurrió aquí."
+            ),
+        },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-78.50, -4.55],
+                [-78.10, -4.40],
+                [-77.65, -4.15],
+                [-77.20, -3.90],
+                [-76.85, -3.55],
+                # Vuelta norte
+                [-76.80, -3.45],
+                [-77.15, -3.80],
+                [-77.60, -4.05],
+                [-78.05, -4.30],
+                [-78.50, -4.45],
+                [-78.50, -4.55],
+            ]]
+        }
+    },
+    # --------------------------------------------------------------------
+    # Concesiones adicionales activas en Loreto, derivadas del dataset
+    # RAISG Amazon Petroleum Blocks 2022 (amazoniasocioambiental.org).
+    # Estas no estaban en el set inicial — son las áreas más probables de
+    # caer "fuera de cobertura" cuando un usuario prueba un bbox al norte
+    # (Napo) o al sur (Ucayali medio) del corredor del Marañón.
+    # --------------------------------------------------------------------
+    {
+        "type": "Feature",
+        "properties": {
+            "operator_name": "Perenco Perú Petroleum Ltd. Sucursal del Perú",
+            "concession_id": "Lote-67",
+            "feature_type": "concession",
+            "osinergmin_id": "OSI-067-2008",
+            "prior_sanctions": 18,
+            "legal_status": "active",
+            "parent_company": "Perenco S.A. (Anglo-French)",
+            "area_ha": 101000,
+            "_source": "PERUPETRO Contrato Licencia 67 (2008); RAISG 2022; OEFA Res. 020-2018",
+            "_districts": "Napo, Torres Causana (Maynas)",
+            "_river_basin": "Napo (cabecera)",
+            "_notes": (
+                "Bloque petrolero en el alto Napo, frontera con Ecuador. Campos Dorado, "
+                "Piraña, Paiche. Polígono aproximado a partir del dataset RAISG petroleum "
+                "blocks 2022 — reemplazar con shapefile MINEM/SIDEMCAT en producción."
+            ),
+        },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-73.45, -1.70],
+                [-73.10, -1.55],
+                [-72.75, -1.60],
+                [-72.55, -1.85],
+                [-72.50, -2.20],
+                [-72.65, -2.50],
+                [-72.95, -2.65],
+                [-73.30, -2.55],
+                [-73.50, -2.25],
+                [-73.55, -1.90],
+                [-73.45, -1.70],
+            ]]
+        }
+    },
+    {
+        "type": "Feature",
+        "properties": {
+            "operator_name": "GeoPark Perú S.A.C.",
+            "concession_id": "Lote-64",
+            "feature_type": "concession",
+            "osinergmin_id": "OSI-064-2014",
+            "prior_sanctions": 7,
+            "legal_status": "active",
+            "parent_company": "GeoPark Limited (Chile/Bermuda)",
+            "area_ha": 168000,
+            "_source": "PERUPETRO Contrato Licencia 64 (transferido a GeoPark 2019); RAISG 2022",
+            "_districts": "Manseriche, Andoas (Datem del Marañón)",
+            "_river_basin": "Morona, Pastaza tributarios",
+            "_notes": (
+                "Lote 64 al suroeste de Lote 8, frontera con Lote 116. Históricamente "
+                "Talisman → PetroTal → GeoPark (2019). Polígono aproximado RAISG 2022. "
+                "Territorio Achuar — actividad social pendiente con FENAP."
+            ),
+        },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-77.20, -4.95],
+                [-76.90, -4.85],
+                [-76.55, -4.90],
+                [-76.40, -5.15],
+                [-76.45, -5.45],
+                [-76.65, -5.65],
+                [-77.00, -5.70],
+                [-77.25, -5.55],
+                [-77.35, -5.25],
+                [-77.30, -5.00],
+                [-77.20, -4.95],
+            ]]
+        }
+    },
+    {
+        "type": "Feature",
+        "properties": {
+            "operator_name": "PetroTal Corp. (Sucursal del Perú)",
+            "concession_id": "Lote-116",
+            "feature_type": "concession",
+            "osinergmin_id": "OSI-116-2019",
+            "prior_sanctions": 4,
+            "legal_status": "active",
+            "parent_company": "PetroTal Corp. (Canadá)",
+            "area_ha": 234000,
+            "_source": "PERUPETRO Contrato Licencia 116; RAISG 2022; PetroTal investor reports 2023",
+            "_districts": "Manseriche, Imaza (frontera Loreto-Amazonas)",
+            "_river_basin": "Marañón alto",
+            "_notes": (
+                "Lote 116 en la frontera Loreto-Amazonas, al SE de Tramo II del ONP. "
+                "Históricamente Pacific E&P → GeoPark → PetroTal. Polígono aproximado "
+                "RAISG 2022 — pendiente cruce con shapefile MINEM."
+            ),
+        },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-78.60, -4.75],
+                [-78.25, -4.65],
+                [-77.90, -4.70],
+                [-77.70, -4.95],
+                [-77.75, -5.25],
+                [-77.95, -5.50],
+                [-78.30, -5.55],
+                [-78.55, -5.40],
+                [-78.70, -5.10],
+                [-78.65, -4.85],
+                [-78.60, -4.75],
             ]]
         }
     },

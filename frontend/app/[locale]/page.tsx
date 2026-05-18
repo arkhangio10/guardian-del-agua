@@ -40,23 +40,27 @@ export default function HomePage() {
       })
       .then((data) => {
         const incoming = Array.isArray(data) ? data : [];
-        // Discard alerts with missing or malformed bbox — the map silently drops
-        // them (NaN coords project off-globe) so they'd appear in the sidebar
-        // count but never on the map, leaving "N evidencias" inconsistent with
-        // visible markers. Filtering at the source keeps counts honest.
-        const mappable = incoming.filter(
-          (a) =>
+        // An "audit trail probatorio" must name a responsible operator and have
+        // a mappable footprint — anything missing either is dead weight for the
+        // dossier flow. Filter at the source so sidebar counts, map markers,
+        // and dossier downloads all agree on the same evidence set.
+        const valid = incoming.filter((a) => {
+          const bboxOk =
             Array.isArray(a?.sentinel_bbox) &&
             a.sentinel_bbox.length === 4 &&
-            a.sentinel_bbox.every((v: unknown) => typeof v === "number" && Number.isFinite(v))
-        );
-        const dropped = incoming.length - mappable.length;
+            a.sentinel_bbox.every((v: unknown) => typeof v === "number" && Number.isFinite(v));
+          const operatorOk =
+            typeof a?.attribution?.operator_name === "string" &&
+            a.attribution.operator_name.trim().length > 0;
+          return bboxOk && operatorOk;
+        });
+        const dropped = incoming.length - valid.length;
         if (dropped > 0) {
           console.warn(
-            `[Map] Dropped ${dropped}/${incoming.length} alerts with missing/invalid sentinel_bbox`
+            `[Alerts] Dropped ${dropped}/${incoming.length} alerts (invalid bbox or no operator attribution)`
           );
         }
-        setAlerts(mappable);
+        setAlerts(valid);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));

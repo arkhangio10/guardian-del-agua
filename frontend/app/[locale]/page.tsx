@@ -38,7 +38,26 @@ export default function HomePage() {
         if (!r.ok) throw new Error("fetch failed");
         return r.json();
       })
-      .then((data) => setAlerts(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const incoming = Array.isArray(data) ? data : [];
+        // Discard alerts with missing or malformed bbox — the map silently drops
+        // them (NaN coords project off-globe) so they'd appear in the sidebar
+        // count but never on the map, leaving "N evidencias" inconsistent with
+        // visible markers. Filtering at the source keeps counts honest.
+        const mappable = incoming.filter(
+          (a) =>
+            Array.isArray(a?.sentinel_bbox) &&
+            a.sentinel_bbox.length === 4 &&
+            a.sentinel_bbox.every((v: unknown) => typeof v === "number" && Number.isFinite(v))
+        );
+        const dropped = incoming.length - mappable.length;
+        if (dropped > 0) {
+          console.warn(
+            `[Map] Dropped ${dropped}/${incoming.length} alerts with missing/invalid sentinel_bbox`
+          );
+        }
+        setAlerts(mappable);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);

@@ -55,6 +55,10 @@
   "drawer": {
     "label": "Evidentiary dossier",
     "close_aria": "Close dossier",
+    "view_mode": {
+      "simple": "Simple",
+      "expert": "Expert"
+    },
     "loading_error": "Could not load the dossier.",
     "operator_panel": "Responsible operator",
     "evidence_panel": "Satellite evidence",
@@ -129,6 +133,55 @@
       "el_nino_strong": "Strong El Niño",
       "el_nino_costero": "Coastal El Niño"
     }
+  },
+  "simple": {
+    "open_image": "Open enlarged image",
+    "alt_image": "Satellite image of the affected area",
+    "expand_image": "Click to enlarge",
+    "unknown_operator": "unknown operator",
+    "what_happens": {
+      "title": "What's happening",
+      "body": "Possible <strong>{kind}</strong> detected at <strong>{concession}</strong>, operated by <strong>{operator}</strong>, on {date}.",
+      "river_label": "Affected river"
+    },
+    "who_affected": {
+      "title": "Who is affected",
+      "body": "Up to <strong>{count_30d} people</strong> may be affected over the next 30 days (water access, fishing, health). First week: <strong>{count_7d}</strong>.",
+      "water_sources": "{n} drinking-water source(s) at risk",
+      "fish": "{pct}% estimated fish die-off over 30 days",
+      "economic": "Estimated economic damage: ${usd} USD",
+      "no_data": "Human impact for this alert is not yet computed. The prediction layer hasn't run."
+    },
+    "why_serious": {
+      "title": "Why this matters",
+      "prior_sanctions": "<strong>{operator}</strong> has <strong>{count} prior pollution sanctions</strong> on OEFA record",
+      "el_nino": "<strong>{state}</strong> is active: impact could be amplified <strong>{mult}×</strong> (from {base} to {worst} people affected in 30 days)",
+      "recovery": "Estimated natural recovery: <strong>{days} days</strong> (~{months} months) without human intervention",
+      "legal_status": {
+        "active": "<strong>{operator}</strong> is still operating",
+        "in_liquidation": "<strong>{operator}</strong> is in liquidation — legal liability may dilute",
+        "divested": "<strong>{operator}</strong> has divested the asset — successor liability pending",
+        "settled": "<strong>{operator}</strong> has prior settlements in place"
+      }
+    },
+    "how_we_know": {
+      "title": "How we know",
+      "satellite": "The <strong>Sentinel-2 satellite</strong> from the European Space Agency captured this image on {date}. The image is public and verifiable.",
+      "ai": "An <strong>AI</strong> (Claude, from Anthropic) analyzed the image and detected: <em>{pattern}</em>. Analysis confidence: <strong>{confidence}%</strong>.",
+      "see_image": "View full satellite image"
+    },
+    "what_to_do": {
+      "title": "What can be done",
+      "description": "This evidence is ready for OEFA submission. The PDF includes cited legal grounds, technical chain of custody, and requires a human signature before official filing.",
+      "generate": "Generate OEFA complaint (PDF)",
+      "generating": "Generating complaint…",
+      "denuncia_ready": "Preliminary complaint ready for human review",
+      "download_pdf": "Download PDF",
+      "no_attribution": "Responsible operator not yet identified. The attribution layer hasn't run.",
+      "share_federation": "Send to federation",
+      "share_press": "Send to journalist"
+    },
+    "disclaimer": "Preliminary document. Attribution is presumed, subject to on-site verification by the competent authority. Requires the signature of an authorized legal representative before official submission to OEFA."
   },
   "language": {
     "switcher_aria": "Change language",

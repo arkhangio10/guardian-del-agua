@@ -55,6 +55,10 @@
   "drawer": {
     "label": "Dossier probatorio",
     "close_aria": "Cerrar dossier",
+    "view_mode": {
+      "simple": "Simple",
+      "expert": "Experto"
+    },
     "loading_error": "No se pudo cargar el dossier.",
     "operator_panel": "Operador responsable",
     "evidence_panel": "Evidencia satelital",
@@ -129,6 +133,55 @@
       "el_nino_strong": "El Niño fuerte",
       "el_nino_costero": "El Niño Costero"
     }
+  },
+  "simple": {
+    "open_image": "Abrir imagen ampliada",
+    "alt_image": "Imagen satelital del área afectada",
+    "expand_image": "Click para ampliar",
+    "unknown_operator": "operador desconocido",
+    "what_happens": {
+      "title": "Qué pasa",
+      "body": "Posible <strong>{kind}</strong> detectado en <strong>{concession}</strong>, operada por <strong>{operator}</strong>, el {date}.",
+      "river_label": "Río afectado"
+    },
+    "who_affected": {
+      "title": "A quién afecta",
+      "body": "Hasta <strong>{count_30d} personas</strong> en los próximos 30 días pueden verse afectadas (acceso a agua, pesca, salud). En la primera semana: <strong>{count_7d}</strong>.",
+      "water_sources": "{n} fuente(s) de agua potable en riesgo",
+      "fish": "{pct}% de mortandad piscícola estimada en 30 días",
+      "economic": "Daño económico estimado: ${usd} USD",
+      "no_data": "Aún no se calculó el impacto humano para esta alerta. Falta ejecutar la capa de predicción."
+    },
+    "why_serious": {
+      "title": "Por qué es grave",
+      "prior_sanctions": "<strong>{operator}</strong> tiene <strong>{count} sanciones previas</strong> por contaminación documentadas en OEFA",
+      "el_nino": "<strong>{state}</strong> está activo: puede multiplicar el impacto <strong>{mult}×</strong> (de {base} a {worst} personas afectadas en 30 días)",
+      "recovery": "Recuperación natural estimada: <strong>{days} días</strong> (~{months} meses) sin intervención humana",
+      "legal_status": {
+        "active": "<strong>{operator}</strong> sigue operando activamente",
+        "in_liquidation": "<strong>{operator}</strong> está en liquidación — el responsable legal puede diluirse",
+        "divested": "<strong>{operator}</strong> ya se desvinculó del activo — atribución de responsabilidad sucesora pendiente",
+        "settled": "<strong>{operator}</strong> tiene acuerdos previos vigentes"
+      }
+    },
+    "how_we_know": {
+      "title": "Cómo lo sabemos",
+      "satellite": "El <strong>satélite Sentinel-2</strong> de la Agencia Espacial Europea captó esta imagen el {date}. La imagen es pública y verificable.",
+      "ai": "Una <strong>inteligencia artificial</strong> (Claude, de Anthropic) analizó la imagen y detectó: <em>{pattern}</em>. Confianza del análisis: <strong>{confidence}%</strong>.",
+      "see_image": "Ver imagen satelital completa"
+    },
+    "what_to_do": {
+      "title": "Qué se puede hacer",
+      "description": "Esta evidencia está lista para presentarse ante OEFA. El PDF incluye base legal citada, cadena de custodia técnica, y requiere firma humana antes de envío oficial.",
+      "generate": "Generar denuncia OEFA (PDF)",
+      "generating": "Generando denuncia…",
+      "denuncia_ready": "Denuncia preliminar lista para revisión humana",
+      "download_pdf": "Descargar PDF",
+      "no_attribution": "Aún no se identificó al operador responsable. Falta ejecutar la capa de atribución.",
+      "share_federation": "Enviar a federación",
+      "share_press": "Enviar a periodista"
+    },
+    "disclaimer": "Documento preliminar. La atribución es presunta, sujeta a verificación in situ por la autoridad competente. Requiere firma de un representante legal antes de presentación oficial ante OEFA."
   },
   "language": {
     "switcher_aria": "Cambiar idioma",

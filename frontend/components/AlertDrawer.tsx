@@ -2,8 +2,12 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import SatelliteLightbox from "./SatelliteLightbox";
+import SimpleDossier from "./SimpleDossier";
 import { bboxAreaKm2, bboxSidesKm } from "@/utils/bbox";
 import { projectUnderElNino } from "@/utils/climate";
+
+type ViewMode = "simple" | "expert";
+const VIEW_MODE_KEY = "gda.viewMode";
 
 const TYPE_META: Record<string, { tKey: string; chip: string; dot: string }> = {
   hydrocarbon: {
@@ -44,6 +48,19 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
   const [denuncia, setDenuncia] = useState<any>(null);
   const [denunciaError, setDenunciaError] = useState<string | null>(null);
   const [climateState, setClimateState] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("simple");
+
+  // Restore view-mode preference on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(VIEW_MODE_KEY);
+    if (saved === "simple" || saved === "expert") setViewMode(saved);
+  }, []);
+  // Persist whenever the user toggles.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(VIEW_MODE_KEY, viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (!alertId) return;
@@ -121,15 +138,47 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
               {t("label")}
             </span>
             {alert?.alert_id && (
-              <code className="text-[10px] text-slate-500 font-mono truncate">
+              <code className="text-[10px] text-slate-500 font-mono truncate hidden sm:inline">
                 #{alert.alert_id.slice(0, 8)}
               </code>
             )}
           </div>
+
+          {/* View mode toggle */}
+          <div
+            role="tablist"
+            className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900/70 border border-slate-700/40 flex-shrink-0"
+          >
+            <button
+              role="tab"
+              aria-selected={viewMode === "simple"}
+              onClick={() => setViewMode("simple")}
+              className={`px-3 h-7 rounded-md text-[11px] font-semibold transition-all ${
+                viewMode === "simple"
+                  ? "bg-teal-500/25 text-teal-100"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {t("view_mode.simple")}
+            </button>
+            <button
+              role="tab"
+              aria-selected={viewMode === "expert"}
+              onClick={() => setViewMode("expert")}
+              className={`px-3 h-7 rounded-md text-[11px] font-semibold transition-all ${
+                viewMode === "expert"
+                  ? "bg-teal-500/25 text-teal-100"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {t("view_mode.expert")}
+            </button>
+          </div>
+
           <button
             onClick={onClose}
             aria-label={t("close_aria")}
-            className="w-8 h-8 rounded-full bg-slate-800/60 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-800/60 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors flex-shrink-0"
           >
             ✕
           </button>
@@ -154,7 +203,22 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
             </div>
           )}
 
-          {!loading && alert && (
+          {!loading && alert && viewMode === "simple" && (
+            <div className="p-6">
+              <SimpleDossier
+                alert={alert}
+                apiBase={apiBase}
+                climateState={climateState}
+                onOpenImage={() => setLightboxOpen(true)}
+                onGenerateDenuncia={generateDenuncia}
+                generating={generating}
+                denuncia={denuncia}
+                denunciaError={denunciaError}
+              />
+            </div>
+          )}
+
+          {!loading && alert && viewMode === "expert" && (
             <div className="p-6 space-y-5">
               {/* Hero: satellite image + operator */}
               <section className="relative rounded-2xl overflow-hidden border border-slate-700/40 bg-slate-900">

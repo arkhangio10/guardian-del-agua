@@ -77,9 +77,9 @@ export default function SimpleDossier({
   const climateActive = climate?.severity > 0;
 
   // Publish-button state. Each channel has independent feedback so the user can
-  // re-send one without resetting the other. We confirm before firing because
-  // a stray click would burn a real SMS/email to the demo recipient (+51961530528
-  // and arkhangio@gmail.com hardcoded in publish.py DEMO_RECIPIENTS).
+  // re-send one without resetting the other. Click opens a modal with the
+  // recipient pre-filled to the demo default (overridable) and a preview of
+  // what's about to be sent — no more stray SMS to the hardcoded number.
   const [pubStatus, setPubStatus] = useState<Record<PublishChannel, PublishStatus>>({
     federation: "idle",
     press: "idle",
@@ -88,33 +88,41 @@ export default function SimpleDossier({
     federation: "",
     press: "",
   });
+  const [modalChannel, setModalChannel] = useState<PublishChannel | null>(null);
 
-  const handlePublish = async (channel: PublishChannel) => {
-    const promptLabel =
-      channel === "federation"
-        ? "¿Enviar SMS + WhatsApp al destinatario demo (+51 *** 528)?"
-        : "¿Enviar email al periodista demo (arkhangio@gmail.com)?";
-    if (!window.confirm(promptLabel)) return;
+  const openPublishModal = (channel: PublishChannel) => {
+    setModalChannel(channel);
+  };
 
+  const dispatchPublish = async (channel: PublishChannel, recipient: string) => {
+    setModalChannel(null);
     setPubStatus((s) => ({ ...s, [channel]: "sending" }));
     setPubMessage((m) => ({ ...m, [channel]: "" }));
 
-    // Federation flow uses rural-connectivity channels (SMS + WhatsApp).
-    // Press flow uses email. Server-side `channels` query restricts which
-    // transports actually fire.
+    // Federation flow uses rural-connectivity channels (SMS + WhatsApp) — same
+    // phone number is used for both. Press flow uses email. Server-side
+    // `channels` query restricts which transports actually fire.
     const channelsParam = channel === "federation" ? "sms,whatsapp" : "email";
+    const body =
+      channel === "federation"
+        ? { sms_recipients: [recipient], whatsapp_recipients: [recipient] }
+        : { email_recipients: [recipient] };
 
     try {
       const resp = await fetch(
         `${apiBase}/publish/${alert.alert_id}?channels=${channelsParam}`,
-        { method: "POST", headers: { "Content-Type": "application/json" } }
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
       );
       if (!resp.ok) {
         const errText = await resp.text();
         throw new Error(`HTTP ${resp.status}: ${errText.slice(0, 120)}`);
       }
       const data = await resp.json();
-      const summary = summarizePublishResult(channel, data);
+      const summary = summarizePublishResult(channel, data, recipient);
       setPubStatus((s) => ({ ...s, [channel]: "sent" }));
       setPubMessage((m) => ({ ...m, [channel]: summary }));
     } catch (e: any) {
@@ -328,14 +336,14 @@ export default function SimpleDossier({
               <SecondaryAction
                 icon="📨"
                 label={t("what_to_do.share_federation")}
-                onClick={() => handlePublish("federation")}
+                onClick={() => openPublishModal("federation")}
                 status={pubStatus.federation}
                 message={pubMessage.federation}
               />
               <SecondaryAction
                 icon="📰"
                 label={t("what_to_do.share_press")}
-                onClick={() => handlePublish("press")}
+                onClick={() => openPublishModal("press")}
                 status={pubStatus.press}
                 message={pubMessage.press}
               />
@@ -362,6 +370,15 @@ export default function SimpleDossier({
       <p className="text-[11px] text-slate-500 italic leading-relaxed pt-2 border-t border-slate-800/60">
         {t("disclaimer")}
       </p>
+
+      {modalChannel && (
+        <PublishModal
+          channel={modalChannel}
+          alert={alert}
+          onCancel={() => setModalChannel(null)}
+          onSend={(recipient) => dispatchPublish(modalChannel, recipient)}
+        />
+      )}
     </div>
   );
 }
@@ -444,7 +461,11 @@ function SecondaryAction({
   );
 }
 
-function summarizePublishResult(channel: PublishChannel, data: any): string {
+function summarizePublishResult(
+  channel: PublishChannel,
+  data: any,
+  recipient: string
+): string {
   const n = data?.notifications ?? {};
   if (channel === "federation") {
     const smsOk = (n.sms ?? []).filter((r: any) => r.sent).length;
@@ -454,11 +475,157 @@ function summarizePublishResult(channel: PublishChannel, data: any): string {
     if (smsTot + waTot === 0) {
       return "Backend OK pero Zavu no configurado (ZAVU_API_KEY)";
     }
-    return `SMS ${smsOk}/${smsTot} · WhatsApp ${waOk}/${waTot} enviados`;
+    return `SMS ${smsOk}/${smsTot} · WA ${waOk}/${waTot} → ${maskPhone(recipient)}`;
   }
-  // press channel
   if (!n.email) return "Backend OK pero Resend no configurado (RESEND_API_KEY)";
-  return `Email enviado (${n.email.sent_to?.length ?? 0} destinatarios)`;
+  return `Email enviado → ${recipient}`;
+}
+
+function maskPhone(phone: string): string {
+  // Keep country code + last 3 digits, mask middle: +51 *** 528
+  const clean = phone.replace(/\s/g, "");
+  if (clean.length <= 6) return clean;
+  return `${clean.slice(0, 3)} *** ${clean.slice(-3)}`;
+}
+
+function isValidPhone(p: string): boolean {
+  // E.164-ish: starts with + and 8-15 digits
+  return /^\+\d{8,15}$/.test(p.replace(/\s/g, ""));
+}
+
+function isValidEmail(e: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+}
+
+function PublishModal({
+  channel,
+  alert,
+  onCancel,
+  onSend,
+}: {
+  channel: PublishChannel;
+  alert: any;
+  onCancel: () => void;
+  onSend: (recipient: string) => void;
+}) {
+  const isFederation = channel === "federation";
+  const defaultRecipient = isFederation ? "+51961530528" : "arkhangio@gmail.com";
+  const [recipient, setRecipient] = useState(defaultRecipient);
+  const valid = isFederation ? isValidPhone(recipient) : isValidEmail(recipient);
+
+  const operator = alert.attribution?.operator_name ?? "operador denunciado";
+  const concession = alert.attribution?.concession_id ?? "";
+  const priorSanctions = alert.attribution?.prior_sanctions ?? 0;
+  const contamType = (alert.contamination_type ?? "contaminación").toUpperCase();
+  const affected30d = alert.predictions?.people_affected_30d ?? 0;
+  const fishDieoff = alert.predictions?.fish_dieoff_30d_pct ?? 0;
+  const alertRef = (alert.alert_id ?? "").slice(0, 8);
+
+  const preview = isFederation
+    ? `*ALERTA AMBIENTAL — Guardián del Agua*
+
+*Tipo:* ${contamType}
+*Presunto responsable* (sujeto a verificación in situ):
+  ${operator}
+  Concesión: ${concession}
+  Sanciones previas: ${priorSanctions}
+
+*Proyección 30 días:*
+• ${affected30d.toLocaleString()} personas potencialmente afectadas
+• ${fishDieoff.toFixed(0)}% mortandad piscícola
+
+_Indicios técnicos preliminares. Requiere verificación humana._
+
+Ref: ${alertRef}`
+    : `Asunto: Dossier preliminar: presunto responsable ${operator} — ${contamType}
+
+Dossier técnico con cadena de custodia (SHA-256), atribución espacial, modelo XGBoost de impacto, e imagen Sentinel-2 verificable.
+
+Documento PRELIMINAR sujeto a verificación in situ por OEFA.`;
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-slate-900 border border-slate-700/60 rounded-2xl max-w-lg w-full p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-100">
+              {isFederation ? "Enviar a federación" : "Enviar a periodista"}
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {isFederation
+                ? "Se enviará SMS + WhatsApp al número indicado"
+                : "Se enviará email al destinatario indicado"}
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            aria-label="Cerrar"
+            className="text-slate-500 hover:text-slate-200 text-xl leading-none px-2"
+          >
+            ×
+          </button>
+        </div>
+
+        <label className="block mb-3">
+          <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            {isFederation ? "Número (formato internacional)" : "Email"}
+          </span>
+          <input
+            type={isFederation ? "tel" : "email"}
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder={isFederation ? "+51961530528" : "destinatario@ejemplo.org"}
+            autoFocus
+            className={`mt-1 w-full px-3 py-2 rounded-lg bg-slate-950 border text-slate-100 text-sm font-mono focus:outline-none focus:ring-1 ${
+              valid
+                ? "border-slate-700 focus:border-teal-500 focus:ring-teal-500/40"
+                : "border-rose-700/60 focus:border-rose-500 focus:ring-rose-500/40"
+            }`}
+          />
+          {!valid && recipient.length > 0 && (
+            <span className="text-[11px] text-rose-300 mt-1 block">
+              {isFederation
+                ? "Formato esperado: +<código país><número>, p.ej. +51961530528"
+                : "Email no válido"}
+            </span>
+          )}
+        </label>
+
+        <div className="mb-4">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
+            Vista previa del mensaje
+          </div>
+          <pre className="text-[11px] text-slate-300 bg-slate-950/70 border border-slate-800 rounded-lg p-3 max-h-44 overflow-auto whitespace-pre-wrap font-sans">
+            {preview}
+          </pre>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onSend(recipient.trim())}
+            disabled={!valid}
+            className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+          >
+            Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function climateLabel(label: string): string {

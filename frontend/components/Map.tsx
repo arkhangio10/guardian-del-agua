@@ -29,6 +29,8 @@ const SATELLITE_STYLE: StyleSpecification = {
   version: 8,
   glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
+    // ESRI World Imagery — great global context + good coverage outside
+    // the deep Amazon. Acts as fallback under EOX when EOX has gaps.
     "esri-imagery": {
       type: "raster",
       tiles: [
@@ -38,6 +40,19 @@ const SATELLITE_STYLE: StyleSpecification = {
       attribution:
         "Imagery © Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community",
       maxzoom: 19,
+    },
+    // EOX Sentinel-2 cloudless mosaic (10 m/px, free, no auth, full
+    // Amazon coverage). ESRI returns "Map data not yet available" deep
+    // in the rainforest at z>13; this fills the gap.
+    "eox-s2cloudless": {
+      type: "raster",
+      tiles: [
+        "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg",
+      ],
+      tileSize: 256,
+      attribution:
+        "Sentinel-2 cloudless 2024 by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)",
+      maxzoom: 18,
     },
     "esri-reference": {
       type: "raster",
@@ -49,13 +64,16 @@ const SATELLITE_STYLE: StyleSpecification = {
     },
   },
   layers: [
+    // Order matters: ESRI is the base, EOX on top kicks in when its tile
+    // is available (and renders below the darken+labels overlay).
     { id: "imagery", type: "raster", source: "esri-imagery" },
+    { id: "s2cloudless", type: "raster", source: "eox-s2cloudless" },
     {
       id: "imagery-darken",
       type: "background",
       paint: {
         "background-color": "#050b14",
-        "background-opacity": 0.32,
+        "background-opacity": 0.28,
       },
     },
     {

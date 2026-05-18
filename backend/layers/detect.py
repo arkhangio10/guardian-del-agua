@@ -16,12 +16,32 @@ from models.alert import Alert
 
 router = APIRouter()
 
-# In-memory cache for Sentinel-2 thumbnails. Key: f"{alert_id}|{band}|{phase}".
+# In-memory cache for Sentinel-2 thumbnails. Key includes band, phase, zoom_pct
+# and any date override so each (zoom tier × date) is a distinct entry.
 _image_cache: dict[str, tuple[bytes, datetime]] = {}
 _IMAGE_CACHE_TTL = timedelta(hours=1)
 
+# In-memory cache for Sentinel Hub Catalog API lookups (actual pass dates).
+_pass_date_cache: dict[str, tuple[str | None, datetime]] = {}
+_PASS_DATE_CACHE_TTL = timedelta(hours=6)
+
 # How many days back from the incident the "before" baseline is fetched.
 BEFORE_OFFSET_DAYS = 45
+
+# Sentinel-2 native is 10 m/px. 2048² over a ~55 km bbox renders ~27 m/px
+# effective and ~13 m/px once the user zooms to the 50%-crop tier — actually
+# resolvable detail instead of pixelated CSS scaling on a 512² source.
+DEFAULT_IMAGE_SIZE = 2048
+
+# Analysis grayscale needs only enough pixels for stable per-pixel statistics;
+# staying at 512² keeps compute_spectral_evidence_real() fast and PU cost low.
+ANALYSIS_IMAGE_SIZE = 512
+
+# Cloud-cover ceilings per use case. RGB/NIR are pulled tight for visual clarity;
+# index overlays and grayscale analysis stay lenient so Amazon cloud cover doesn't
+# starve the pipeline of usable passes.
+MAX_CLOUD_VISUAL = 30
+MAX_CLOUD_INDEX = 70
 
 
 def _esri_export_url(bbox: list[float], size: int = 512) -> str:
@@ -317,6 +337,92 @@ SENTINEL_AUTH_URL = (
     "https://services.sentinel-hub.com/auth/realms/main/protocol/openid-connect/token"
 )
 SENTINEL_PROCESS_URL = "https://services.sentinel-hub.com/api/v1/process"
+SENTINEL_CATALOG_URL = "https://services.sentinel-hub.com/api/v1/catalog/1.0.0/search"
+
+
+def _bbox_cache_key(bbox: list[float]) -> str:
+    return ",".join(f"{v:.4f}" for v in bbox)
+
+
+async def resolve_actual_pass_date(
+    bbox: list[float],
+    target_date: str,
+    max_cloud: int = MAX_CLOUD_VISUAL,
+    window_days: int = 15,
+) -> str | None:
+    """
+    Consultar Sentinel Hub Catalog API y devolver la fecha (YYYY-MM-DD) de la
+    pasada real más cercana al target dentro del ceiling de cobertura nubosa.
+
+    Devuelve None si Sentinel Hub no está configurado, si el catálogo no tiene
+    pasadas elegibles, o si la llamada falla — el caller debe usar la target_date
+    nominal como fallback.
+    """
+    if not (settings.sentinel_hub_client_id and settings.sentinel_hub_client_secret):
+        return None
+
+    cache_key = f"{_bbox_cache_key(bbox)}|{target_date}|{max_cloud}"
+    cached = _pass_date_cache.get(cache_key)
+    if cached and datetime.now(timezone.utc) < cached[1]:
+        return cached[0]
+
+    try:
+        token = await get_sentinel_token()
+        target_dt = datetime.strptime(target_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        date_from = (target_dt - timedelta(days=window_days)).strftime("%Y-%m-%dT00:00:00Z")
+        date_to = (target_dt + timedelta(days=window_days)).strftime("%Y-%m-%dT23:59:59Z")
+        payload = {
+            "bbox": bbox,
+            "datetime": f"{date_from}/{date_to}",
+            "collections": ["sentinel-2-l2a"],
+            "limit": 50,
+        }
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                SENTINEL_CATALOG_URL,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            resp.raise_for_status()
+            body = resp.json()
+    except Exception as exc:
+        print(f"[WARN] Sentinel Catalog lookup failed for {bbox} @ {target_date}: {exc}", flush=True)
+        _pass_date_cache[cache_key] = (None, datetime.now(timezone.utc) + _PASS_DATE_CACHE_TTL)
+        return None
+
+    candidates: list[tuple[int, str]] = []
+    for feat in body.get("features", []):
+        props = feat.get("properties", {}) or {}
+        cc_raw = props.get("eo:cloud_cover")
+        dt_iso = props.get("datetime", "") or ""
+        if cc_raw is None or not dt_iso:
+            continue
+        try:
+            cc = float(cc_raw)
+        except (TypeError, ValueError):
+            continue
+        if cc > max_cloud:
+            continue
+        # Prefer first by cloud cover, tiebreak by temporal proximity.
+        try:
+            cand_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        proximity = abs((cand_dt - target_dt).days)
+        # Sort key: cloud_cover bucket first (so least-cloudy wins), proximity second.
+        rank = int(cc) * 100 + proximity
+        candidates.append((rank, dt_iso[:10]))
+
+    if not candidates:
+        _pass_date_cache[cache_key] = (None, datetime.now(timezone.utc) + _PASS_DATE_CACHE_TTL)
+        return None
+    candidates.sort()
+    actual = candidates[0][1]
+    _pass_date_cache[cache_key] = (actual, datetime.now(timezone.utc) + _PASS_DATE_CACHE_TTL)
+    return actual
 
 # Legacy alias kept for the detect/run pipeline that already uses it.
 EVALSCRIPT = EVALSCRIPT_RGB
@@ -350,19 +456,18 @@ async def fetch_sentinel_image(
     bbox: list[float],
     date: str,
     evalscript: str | None = None,
-    size: int = 1024,
-    max_cloud: int = 30,
+    size: int = DEFAULT_IMAGE_SIZE,
+    max_cloud: int = MAX_CLOUD_VISUAL,
     window_days: int = 15,
 ) -> bytes:
     """
     Fetch a Sentinel-2 L2A render for the given bbox + date.
 
-    Defaults bumped from the previous 512×512/cloud-70 configuration to
-    1024×1024/cloud-30 — the 512² output was discarding ~11× of native
-    resolution (Sentinel-2 is 10 m/px, bbox ~0.5° ≈ 55 km → 107 m/px at
-    512 vs 27 m/px at 1024). Lower cloud threshold means sharper RGB at
-    the cost of slightly less temporal availability; the spectral/grayscale
-    scripts pass max_cloud=70 to keep the pixel-delta v1 robust.
+    Defaults: 2048×2048 at cloud-30. Sentinel-2 is 10 m/px native; a 55 km
+    bbox renders ~27 m/px at this size and ~13 m/px once the user zooms to
+    the 50%-crop tier. Spectral/grayscale callers pass size=ANALYSIS_IMAGE_SIZE
+    (512) and max_cloud=MAX_CLOUD_INDEX (70) to keep the pixel-delta v1 robust
+    against Amazon cloud cover.
     """
     token = await get_sentinel_token()
     # Sentinel-2 revisits every 5 days; Amazonia is heavily clouded.
@@ -736,10 +841,14 @@ async def get_alert_comparison(alert_id: str):
     Return a comparison descriptor for an alert: before/after image URLs across
     the supported band combinations + metadata about the chosen dates.
 
-    The frontend uses this to render a swipe-slider comparison and band toggle.
-    Sentinel Hub creds are NOT required to return the descriptor; the URLs will
-    transparently fall back to ESRI World Imagery when fetched.
+    When Sentinel Hub credentials are configured, queries the Catalog API to
+    resolve the *actual* Sentinel-2 pass dates that will be rendered (the
+    Process API uses leastCC within ±15 days, so the nominal target date may
+    differ from the real pass by up to two weeks). The frontend surfaces these
+    so the dossier never claims a date that wasn't actually photographed.
     """
+    import asyncio
+
     from db import get_db
     db = get_db()
     doc = db.collection("alerts").document(alert_id).get()
@@ -754,6 +863,20 @@ async def get_alert_comparison(alert_id: str):
     incident_date = _alert_incident_date(data)
     before_date = _shift_date(incident_date, -BEFORE_OFFSET_DAYS)
     has_sh = bool(settings.sentinel_hub_client_id and settings.sentinel_hub_client_secret)
+    bbox = data["sentinel_bbox"]
+
+    # Resolve real pass dates in parallel — this is the date the frontend will
+    # display and what ends up in the legal denuncia, so honesty matters.
+    actual_before: str | None = None
+    actual_after: str | None = None
+    if has_sh:
+        try:
+            actual_before, actual_after = await asyncio.gather(
+                resolve_actual_pass_date(bbox, before_date, max_cloud=MAX_CLOUD_VISUAL),
+                resolve_actual_pass_date(bbox, incident_date, max_cloud=MAX_CLOUD_VISUAL),
+            )
+        except Exception as exc:
+            print(f"[WARN] actual-date resolution failed for {alert_id}: {exc}", flush=True)
 
     index_label = {
         "hydrocarbon": "NHI (índice de hidrocarburos)",
@@ -768,6 +891,8 @@ async def get_alert_comparison(alert_id: str):
         "contamination_type": contamination_type,
         "before_date": before_date,
         "after_date": incident_date,
+        "actual_before_date": actual_before,
+        "actual_after_date": actual_after,
         "before_offset_days": BEFORE_OFFSET_DAYS,
         "sentinel_hub_available": has_sh,
         "bands": [
@@ -779,6 +904,7 @@ async def get_alert_comparison(alert_id: str):
             "before": {
                 "label": "Antes del incidente",
                 "date": before_date,
+                "actual_date": actual_before,
                 "url_rgb":   f"{base}?band=rgb&phase=before",
                 "url_nir":   f"{base}?band=nir&phase=before",
                 "url_index": f"{base}?band=index&phase=before",
@@ -786,6 +912,7 @@ async def get_alert_comparison(alert_id: str):
             "after": {
                 "label": "Durante / después",
                 "date": incident_date,
+                "actual_date": actual_after,
                 "url_rgb":   f"{base}?band=rgb&phase=after",
                 "url_nir":   f"{base}?band=nir&phase=after",
                 "url_index": f"{base}?band=index&phase=after",

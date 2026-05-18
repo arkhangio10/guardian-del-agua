@@ -9,18 +9,28 @@ interface Props {
   onClose: () => void;
 }
 
+interface Phase {
+  label: string;
+  date: string;
+  /** Actual Sentinel-2 pass date resolved via Catalog API. May differ from `date`
+   *  by up to ±15 days because Process API picks the least-cloudy pass in window. */
+  actual_date?: string | null;
+  url_rgb: string;
+  url_nir: string;
+  url_index: string;
+}
+
 interface Comparison {
   alert_id: string;
   contamination_type: string;
   before_date: string;
   after_date: string;
+  actual_before_date?: string | null;
+  actual_after_date?: string | null;
   before_offset_days: number;
   sentinel_hub_available: boolean;
   bands: { id: "rgb" | "nir" | "index"; label: string; available: boolean }[];
-  phases: {
-    before: { label: string; date: string; url_rgb: string; url_nir: string; url_index: string };
-    after: { label: string; date: string; url_rgb: string; url_nir: string; url_index: string };
-  };
+  phases: { before: Phase; after: Phase };
 }
 
 type Band = "rgb" | "nir" | "index";
@@ -305,9 +315,9 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
           </div>
           {compareCanRender && (
             <div className="ml-auto hidden md:flex items-center gap-2 text-[10px] font-mono text-slate-500">
-              <span>{comparison.before_date}</span>
+              <span>{comparison.actual_before_date ?? comparison.before_date}</span>
               <span className="text-teal-400">⇄</span>
-              <span className="text-teal-300">{comparison.after_date}</span>
+              <span className="text-teal-300">{comparison.actual_after_date ?? comparison.after_date}</span>
             </div>
           )}
         </div>
@@ -395,27 +405,24 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
               </div>
             </div>
 
-            {/* Before/after labels on image — big, integrated */}
-            <div className="absolute top-4 left-4 z-20 pointer-events-none">
-              <div className="px-3 py-1.5 rounded-lg bg-slate-950/85 border border-slate-700/40 backdrop-blur">
-                <div className="text-[9px] uppercase tracking-[0.18em] text-slate-400 font-semibold">
-                  {tLight("before")}
-                </div>
-                <div className="font-mono text-xs text-slate-100 mt-0.5">
-                  {comparison.before_date}
-                </div>
-              </div>
-            </div>
-            <div className="absolute top-4 right-4 z-20 pointer-events-none">
-              <div className="px-3 py-1.5 rounded-lg bg-teal-500/15 border border-teal-400/40 backdrop-blur">
-                <div className="text-[9px] uppercase tracking-[0.18em] text-teal-300 font-semibold">
-                  {tLight("after")}
-                </div>
-                <div className="font-mono text-xs text-teal-100 mt-0.5">
-                  {comparison.after_date}
-                </div>
-              </div>
-            </div>
+            {/* Before/after labels on image — big, integrated.
+                 When the Catalog API resolved an actual pass date that differs
+                 from the nominal target, surface both so the dossier never
+                 implies imagery exists for a date the satellite didn't fly. */}
+            <DateBadge
+              align="left"
+              variant="muted"
+              label={tLight("before")}
+              nominal={comparison.before_date}
+              actual={comparison.actual_before_date ?? null}
+            />
+            <DateBadge
+              align="right"
+              variant="accent"
+              label={tLight("after")}
+              nominal={comparison.after_date}
+              actual={comparison.actual_after_date ?? null}
+            />
           </>
         ) : (
           <>
@@ -505,6 +512,48 @@ function ZoomBtn({ label, onClick }: { label: string; onClick: () => void }) {
     >
       {label}
     </button>
+  );
+}
+
+function DateBadge({
+  align,
+  variant,
+  label,
+  nominal,
+  actual,
+}: {
+  align: "left" | "right";
+  variant: "muted" | "accent";
+  label: string;
+  nominal: string;
+  actual: string | null;
+}) {
+  const diverged = !!actual && actual !== nominal;
+  const posCls = align === "left" ? "left-4" : "right-4";
+  const shell =
+    variant === "accent"
+      ? "bg-teal-500/15 border-teal-400/40"
+      : "bg-slate-950/85 border-slate-700/40";
+  const labelCls =
+    variant === "accent" ? "text-teal-300" : "text-slate-400";
+  const dateCls =
+    variant === "accent" ? "text-teal-100" : "text-slate-100";
+  return (
+    <div className={`absolute top-4 ${posCls} z-20 pointer-events-none`}>
+      <div className={`px-3 py-1.5 rounded-lg border backdrop-blur ${shell}`}>
+        <div className={`text-[9px] uppercase tracking-[0.18em] font-semibold ${labelCls}`}>
+          {label}
+        </div>
+        <div className={`font-mono text-xs mt-0.5 ${dateCls}`}>
+          {actual ?? nominal}
+        </div>
+        {diverged && (
+          <div className="text-[9px] font-mono text-slate-500 mt-0.5">
+            req. {nominal}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

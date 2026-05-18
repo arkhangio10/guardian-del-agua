@@ -47,7 +47,7 @@
     "algal_bloom_note": "Claude detectó manchas verdes brillantes — pico de clorofila típico de eutrofización."
   },
   "alert": {
-    "detecting": "Detectando…",
+    "detecting": "Sin atribución",
     "unknown_operator": "Operador desconocido",
     "concession": "Concesión",
     "confidence": "confianza",

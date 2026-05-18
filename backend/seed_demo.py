@@ -8,31 +8,48 @@ DEMO DATA NOTICE:
 - Leaderboard figures (e.g. Petroperú 474 spills) are from OEFA enforcement records
   published in ANA and MINAM reports (2000–2024).
 - This script must NOT be run against a production Firestore database.
+
+Detection dates are auto-rolled relative to seed time so the demo Sentinel-2
+imagery always renders recent passes — re-seeding any day keeps the demo
+"this week" without anyone editing hardcoded dates. The bboxes are real
+concession locations, so the rendered imagery is real satellite data of
+those operators regardless of whether an incident occurred on that day.
 """
 import sys
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from db import get_db
 
+_NOW = datetime.now(timezone.utc)
+
+
+def _days_ago(n: int, hour: int = 12, minute: int = 0) -> str:
+    """Naive ISO timestamp `n` days before seed time, anchored at a fixed hour."""
+    dt = (_NOW - timedelta(days=n)).replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _image_id(suffix: str, days: int) -> str:
+    """Sentinel image id with the rolled date inline so _alert_incident_date() parses it."""
+    d = (_NOW - timedelta(days=days)).strftime("%Y%m%d")
+    return f"S2_{d}_{suffix}"
+
+
 DEMO_ALERTS = [
     # Demo showcase principal — bbox oficial documentado en CLAUDE.md.
     # Cuatro Cuencas / Oleoducto Norperuano · Tramo I. La atribución cae a
     # Petroperú (presunto responsable, sujeto a verificación in situ).
-    # Dates rolled forward to 2025-2026 so Sentinel-2 imagery is recent —
-    # the bboxes are real concession locations, so fetching Sentinel for
-    # these recent dates returns actual satellite data of those operators
-    # (regardless of whether a real incident occurred on that date).
     {
         "alert_id": "demo-alert-001",
-        "detected_at": "2026-04-15T14:32:00",
+        "detected_at": _days_ago(6, hour=14, minute=32),
         "contamination_type": "hydrocarbon",
         "confidence": 0.92,
         "sentinel_bbox": [-76.1, -3.9, -75.6, -3.5],
-        "sentinel_image_id": "S2_20260415_ONP_CuatroCuencas",
+        "sentinel_image_id": _image_id("ONP_CuatroCuencas", 6),
         "satellite_image_url": None,
         "status": "published",
         "region_label": "Cuatro Cuencas (Pastaza/Corrientes/Tigre/Marañón)",
@@ -55,11 +72,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-002",
-        "detected_at": "2026-02-22T09:15:00",
+        "detected_at": _days_ago(21, hour=9, minute=15),
         "contamination_type": "hydrocarbon",
         "confidence": 0.88,
         "sentinel_bbox": [-75.8, -4.2, -75.3, -3.8],
-        "sentinel_image_id": "S2_20260222_ONP_Andoas",
+        "sentinel_image_id": _image_id("ONP_Andoas", 21),
         "satellite_image_url": None,
         "status": "act_generated",
         "attribution": {
@@ -81,11 +98,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-003",
-        "detected_at": "2025-11-05T07:50:00",
+        "detected_at": _days_ago(55, hour=7, minute=50),
         "contamination_type": "turbidity",
         "confidence": 0.81,
         "sentinel_bbox": [-74.9, -6.2, -74.2, -5.9],
-        "sentinel_image_id": "S2_20251105_L095",
+        "sentinel_image_id": _image_id("L095", 55),
         "satellite_image_url": None,
         "status": "predicted",
         "attribution": {
@@ -107,11 +124,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-004",
-        "detected_at": "2025-08-18T11:20:00",
+        "detected_at": _days_ago(130, hour=11, minute=20),
         "contamination_type": "algal_bloom",
         "confidence": 0.76,
         "sentinel_bbox": [-75.5, -4.8, -75.0, -4.3],
-        "sentinel_image_id": "S2_20250818_NP14B",
+        "sentinel_image_id": _image_id("NP14B", 130),
         "satellite_image_url": None,
         "status": "attributed",
         "attribution": {
@@ -126,11 +143,11 @@ DEMO_ALERTS = [
     },
     {
         "alert_id": "demo-alert-005",
-        "detected_at": "2024-09-11T16:05:00",
+        "detected_at": _days_ago(230, hour=16, minute=5),
         "contamination_type": "hydrocarbon",
         "confidence": 0.95,
         "sentinel_bbox": [-77.6, -4.0, -77.1, -3.6],
-        "sentinel_image_id": "S2_20240911_ONP_SPILL",
+        "sentinel_image_id": _image_id("ONP_SPILL", 230),
         "satellite_image_url": None,
         "status": "published",
         "attribution": {

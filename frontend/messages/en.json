@@ -38,7 +38,7 @@
     "algal_bloom_note": "Claude detected bright green patches — chlorophyll spike typical of eutrophication."
   },
   "alert": {
-    "detecting": "Detecting…",
+    "detecting": "No operator linked",
     "unknown_operator": "Unknown operator",
     "concession": "Concession",
     "confidence": "confidence",

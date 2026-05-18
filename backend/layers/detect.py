@@ -28,10 +28,11 @@ _PASS_DATE_CACHE_TTL = timedelta(hours=6)
 # How many days back from the incident the "before" baseline is fetched.
 BEFORE_OFFSET_DAYS = 45
 
-# Sentinel-2 native is 10 m/px. 2048² over a ~55 km bbox renders ~27 m/px
-# effective and ~13 m/px once the user zooms to the 50%-crop tier — actually
-# resolvable detail instead of pixelated CSS scaling on a 512² source.
-DEFAULT_IMAGE_SIZE = 2048
+# Sentinel-2 native is 10 m/px. 1024² over a ~55 km bbox renders ~54 m/px
+# effective and ~13 m/px once the user zooms to the 25%-crop tier. Chose 1024
+# over 2048 to keep PU cost at 4× the original 512² instead of 16× — a free-
+# tier Sentinel Hub account survives a multi-hour demo at this size.
+DEFAULT_IMAGE_SIZE = 1024
 
 # Analysis grayscale needs only enough pixels for stable per-pixel statistics;
 # staying at 512² keeps compute_spectral_evidence_real() fast and PU cost low.
@@ -463,11 +464,11 @@ async def fetch_sentinel_image(
     """
     Fetch a Sentinel-2 L2A render for the given bbox + date.
 
-    Defaults: 2048×2048 at cloud-30. Sentinel-2 is 10 m/px native; a 55 km
-    bbox renders ~27 m/px at this size and ~13 m/px once the user zooms to
-    the 50%-crop tier. Spectral/grayscale callers pass size=ANALYSIS_IMAGE_SIZE
-    (512) and max_cloud=MAX_CLOUD_INDEX (70) to keep the pixel-delta v1 robust
-    against Amazon cloud cover.
+    Defaults: 1024×1024 at cloud-30. Sentinel-2 is 10 m/px native; a 55 km
+    bbox renders ~54 m/px at this size and progressively sharper as the user
+    zooms (the /image endpoint crops the bbox toward the centroid before
+    re-requesting). Spectral/grayscale callers pass size=ANALYSIS_IMAGE_SIZE
+    (512) and max_cloud=MAX_CLOUD_INDEX (70) to keep pixel-delta v1 robust.
     """
     token = await get_sentinel_token()
     # Sentinel-2 revisits every 5 days; Amazonia is heavily clouded.

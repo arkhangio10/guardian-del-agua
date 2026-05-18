@@ -146,14 +146,41 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
     alert.description ??
     (typeKey in TYPE_CHIP ? tContam(`${typeKey}_note` as any) : "");
 
+  // CSS scale alone amplifies a downsampled PNG (pixelated). For real detail,
+  // ask the backend to crop the bbox toward the centroid at higher zoom levels —
+  // each tier returns 1024² over a smaller footprint, giving more m/px.
+  // Tier boundaries chosen so the URL only changes twice across the 1×→6× range.
+  function zoomPctForCss(z: number): number {
+    if (z >= 4) return 25;
+    if (z >= 2) return 50;
+    return 100;
+  }
+
   function imageUrl(phase: "before" | "after"): string {
-    if (!comparison) return `${apiBase}/detect/alerts/${alert.alert_id}/image`;
+    const zp = zoomPctForCss(zoom);
+    if (!comparison) {
+      return `${apiBase}/detect/alerts/${alert.alert_id}/image?zoom_pct=${zp}`;
+    }
     const ph = comparison.phases[phase];
-    return apiBase + (band === "nir" ? ph.url_nir : band === "index" ? ph.url_index : ph.url_rgb);
+    const base = band === "nir" ? ph.url_nir : band === "index" ? ph.url_index : ph.url_rgb;
+    const sep = base.includes("?") ? "&" : "?";
+    return `${apiBase}${base}${sep}zoom_pct=${zp}`;
   }
 
   const singleUrl = imageUrl("after");
   const compareCanRender = compareMode && comparison;
+  const nativeZoomActive = !compareCanRender && zoom >= 2;
+
+  // When tier boundary is crossed, the new image is centered on the bbox
+  // centroid so the user's panning offset is no longer meaningful — reset.
+  const tierRef = useRef(zoomPctForCss(zoom));
+  useEffect(() => {
+    const t = zoomPctForCss(zoom);
+    if (t !== tierRef.current) {
+      tierRef.current = t;
+      setOffset({ x: 0, y: 0 });
+    }
+  }, [zoom]);
 
   return (
     <div
@@ -178,13 +205,23 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
 
         <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
           {!compareMode && (
-            <div className="hidden sm:flex items-center gap-1 mr-1 px-1.5 py-0.5 rounded-md bg-slate-900/60 border border-slate-700/40">
-              <ZoomBtn label="−" onClick={() => setZoom((z) => Math.max(z - 0.5, 1))} />
-              <span className="font-mono text-[10px] text-slate-300 w-10 text-center select-none">
-                {Math.round(zoom * 100)}%
-              </span>
-              <ZoomBtn label="+" onClick={() => setZoom((z) => Math.min(z + 0.5, 6))} />
-            </div>
+            <>
+              {nativeZoomActive && (
+                <span
+                  className="hidden md:inline-flex items-center gap-1 px-2 h-7 rounded-md bg-teal-500/15 text-teal-200 text-[10px] uppercase tracking-wider font-mono ring-1 ring-teal-400/30"
+                  title={tLight("native_zoom_hint")}
+                >
+                  ⊕ {tLight("native_zoom")}
+                </span>
+              )}
+              <div className="hidden sm:flex items-center gap-1 mr-1 px-1.5 py-0.5 rounded-md bg-slate-900/60 border border-slate-700/40">
+                <ZoomBtn label="−" onClick={() => setZoom((z) => Math.max(z - 0.5, 1))} />
+                <span className="font-mono text-[10px] text-slate-300 w-10 text-center select-none">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <ZoomBtn label="+" onClick={() => setZoom((z) => Math.min(z + 0.5, 6))} />
+              </div>
+            </>
           )}
           {comparison?.sentinel_hub_available && (
             <button
@@ -389,7 +426,14 @@ export default function SatelliteLightbox({ alert, apiBase, onClose }: Props) {
               className="max-w-full max-h-full object-contain transition-transform duration-100 pointer-events-none"
               style={{
                 filter: IMG_FILTER,
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+                // Compensate CSS scale by the native-crop tier so the visual
+                // zoom feels continuous as the URL changes underneath. At
+                // zoom=2 with zoom_pct=50 the image already shows the central
+                // 50% (2× native), so css scale becomes 1; at zoom=3 css = 1.5;
+                // at zoom=4 with zoom_pct=25 css = 1 again, etc.
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${
+                  (zoom * zoomPctForCss(zoom)) / 100
+                })`,
                 transformOrigin: "center center",
               }}
             />

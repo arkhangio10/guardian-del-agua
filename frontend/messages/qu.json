@@ -113,7 +113,9 @@
     "before": "Antes",
     "after": "Después",
     "compare_mode_active": "Comparación temporal activa",
-    "compare_hint": "Arrastrá el control para revelar el antes vs. después"
+    "compare_hint": "Arrastrá el control para revelar el antes vs. después",
+    "native_zoom": "Detalle real",
+    "native_zoom_hint": "El backend está recortando el bbox al centroide y re-pidiendo Sentinel-2 a mayor resolución espacial. Esto no es zoom CSS — es detalle nativo a ~27 m/píxel o mejor."
   },
   "spectral": {
     "panel_title": "Evidencia espectral",

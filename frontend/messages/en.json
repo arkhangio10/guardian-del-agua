@@ -104,7 +104,9 @@
     "before": "Before",
     "after": "After",
     "compare_mode_active": "Temporal comparison active",
-    "compare_hint": "Drag the handle to reveal before vs. after"
+    "compare_hint": "Drag the handle to reveal before vs. after",
+    "native_zoom": "Native detail",
+    "native_zoom_hint": "The backend is cropping the bbox toward the centroid and re-requesting Sentinel-2 at higher spatial resolution. This isn't CSS zoom — it's native detail at ~27 m/px or better."
   },
   "spectral": {
     "panel_title": "Spectral evidence",

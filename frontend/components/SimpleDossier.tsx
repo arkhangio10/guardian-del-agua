@@ -1,7 +1,11 @@
 "use client";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { readableConcession } from "@/utils/concession";
 import { projectUnderElNino } from "@/utils/climate";
+
+type PublishChannel = "federation" | "press";
+type PublishStatus = "idle" | "sending" | "sent" | "error";
 
 interface Props {
   alert: any;
@@ -71,6 +75,53 @@ export default function SimpleDossier({
     climateState;
   const scenario = alert.el_nino_scenario ?? (climate?.label && pred ? projectUnderElNino(pred, climate) : null);
   const climateActive = climate?.severity > 0;
+
+  // Publish-button state. Each channel has independent feedback so the user can
+  // re-send one without resetting the other. We confirm before firing because
+  // a stray click would burn a real SMS/email to the demo recipient (+51961530528
+  // and arkhangio@gmail.com hardcoded in publish.py DEMO_RECIPIENTS).
+  const [pubStatus, setPubStatus] = useState<Record<PublishChannel, PublishStatus>>({
+    federation: "idle",
+    press: "idle",
+  });
+  const [pubMessage, setPubMessage] = useState<Record<PublishChannel, string>>({
+    federation: "",
+    press: "",
+  });
+
+  const handlePublish = async (channel: PublishChannel) => {
+    const promptLabel =
+      channel === "federation"
+        ? "¿Enviar SMS + WhatsApp al destinatario demo (+51 *** 528)?"
+        : "¿Enviar email al periodista demo (arkhangio@gmail.com)?";
+    if (!window.confirm(promptLabel)) return;
+
+    setPubStatus((s) => ({ ...s, [channel]: "sending" }));
+    setPubMessage((m) => ({ ...m, [channel]: "" }));
+
+    // Federation flow uses rural-connectivity channels (SMS + WhatsApp).
+    // Press flow uses email. Server-side `channels` query restricts which
+    // transports actually fire.
+    const channelsParam = channel === "federation" ? "sms,whatsapp" : "email";
+
+    try {
+      const resp = await fetch(
+        `${apiBase}/publish/${alert.alert_id}?channels=${channelsParam}`,
+        { method: "POST", headers: { "Content-Type": "application/json" } }
+      );
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`HTTP ${resp.status}: ${errText.slice(0, 120)}`);
+      }
+      const data = await resp.json();
+      const summary = summarizePublishResult(channel, data);
+      setPubStatus((s) => ({ ...s, [channel]: "sent" }));
+      setPubMessage((m) => ({ ...m, [channel]: summary }));
+    } catch (e: any) {
+      setPubStatus((s) => ({ ...s, [channel]: "error" }));
+      setPubMessage((m) => ({ ...m, [channel]: e?.message ?? "Error" }));
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -274,8 +325,20 @@ export default function SimpleDossier({
               <p className="text-xs text-amber-300 italic">{t("what_to_do.no_attribution")}</p>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-              <SecondaryAction icon="📨" label={t("what_to_do.share_federation")} />
-              <SecondaryAction icon="📰" label={t("what_to_do.share_press")} />
+              <SecondaryAction
+                icon="📨"
+                label={t("what_to_do.share_federation")}
+                onClick={() => handlePublish("federation")}
+                status={pubStatus.federation}
+                message={pubMessage.federation}
+              />
+              <SecondaryAction
+                icon="📰"
+                label={t("what_to_do.share_press")}
+                onClick={() => handlePublish("press")}
+                status={pubStatus.press}
+                message={pubMessage.press}
+              />
             </div>
           </div>
         ) : (
@@ -333,16 +396,69 @@ function NarrativeBlock({
   );
 }
 
-function SecondaryAction({ icon, label }: { icon: string; label: string }) {
+function SecondaryAction({
+  icon,
+  label,
+  onClick,
+  status = "idle",
+  message = "",
+}: {
+  icon: string;
+  label: string;
+  onClick?: () => void;
+  status?: PublishStatus;
+  message?: string;
+}) {
+  const disabled = status === "sending";
+  const statusCls =
+    status === "sent"
+      ? "bg-emerald-900/30 border-emerald-700/50 text-emerald-200"
+      : status === "error"
+      ? "bg-rose-900/30 border-rose-700/50 text-rose-200"
+      : status === "sending"
+      ? "bg-slate-800/80 border-slate-600/60 text-slate-300"
+      : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 text-slate-200";
+  const statusIcon =
+    status === "sent" ? "✓" : status === "error" ? "⚠" : status === "sending" ? "…" : icon;
   return (
-    <button
-      type="button"
-      className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 text-sm text-slate-200 transition-colors"
-    >
-      <span aria-hidden>{icon}</span>
-      {label}
-    </button>
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors disabled:opacity-70 disabled:cursor-wait ${statusCls}`}
+      >
+        <span aria-hidden>{statusIcon}</span>
+        {label}
+      </button>
+      {message && (
+        <p
+          className={`text-[11px] leading-tight px-1 ${
+            status === "error" ? "text-rose-300" : "text-emerald-300"
+          }`}
+        >
+          {message}
+        </p>
+      )}
+    </div>
   );
+}
+
+function summarizePublishResult(channel: PublishChannel, data: any): string {
+  const n = data?.notifications ?? {};
+  if (channel === "federation") {
+    const smsOk = (n.sms ?? []).filter((r: any) => r.sent).length;
+    const smsTot = (n.sms ?? []).length;
+    const waOk = (n.whatsapp ?? []).filter((r: any) => r.sent).length;
+    const waTot = (n.whatsapp ?? []).length;
+    if (smsTot + waTot === 0) {
+      return "Backend OK pero Zavu no configurado (ZAVU_API_KEY)";
+    }
+    return `SMS ${smsOk}/${smsTot} · WhatsApp ${waOk}/${waTot} enviados`;
+  }
+  // press channel
+  if (!n.email) return "Backend OK pero Resend no configurado (RESEND_API_KEY)";
+  return `Email enviado (${n.email.sent_to?.length ?? 0} destinatarios)`;
 }
 
 function climateLabel(label: string): string {

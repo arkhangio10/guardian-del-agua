@@ -187,8 +187,19 @@ class PublishRequest(BaseModel):
 
 
 @router.post("/{alert_id}")
-async def publish_alert(alert_id: str, req: PublishRequest | None = None):
-    """Send SMS, WhatsApp, and email notifications for a fully attributed alert."""
+async def publish_alert(
+    alert_id: str,
+    req: PublishRequest | None = None,
+    channels: str | None = None,
+):
+    """
+    Send SMS, WhatsApp, and email notifications for a fully attributed alert.
+
+    Query param `channels` (comma-separated, optional) restricts which transports
+    fire: e.g. `?channels=sms,whatsapp` (federation flow) or `?channels=email`
+    (press flow). If omitted, all three transports run — preserves the original
+    /pipeline/run + dossier behavior.
+    """
     from db import get_db
     db = get_db()
 
@@ -200,19 +211,25 @@ async def publish_alert(alert_id: str, req: PublishRequest | None = None):
     if not data.get("attribution"):
         raise HTTPException(400, "Alert must be attributed before publishing")
 
+    enabled = (
+        {c.strip().lower() for c in channels.split(",") if c.strip()}
+        if channels
+        else {"sms", "whatsapp", "email"}
+    )
+
     sms_phones = (req.sms_recipients if req else []) or DEMO_RECIPIENTS
     whatsapp_phones = (req.whatsapp_recipients if req else []) or DEMO_RECIPIENTS
     emails = (req.email_recipients if req else []) or JOURNALIST_EMAILS
 
-    results: dict = {"sms": [], "whatsapp": [], "email": None}
+    results: dict = {"sms": [], "whatsapp": [], "email": None, "channels_used": sorted(enabled)}
 
-    if settings.zavu_api_key:
+    if "sms" in enabled and settings.zavu_api_key:
         for phone in sms_phones:
             results["sms"].append(await send_sms_alert(phone, data))
+    if "whatsapp" in enabled and settings.zavu_api_key:
         for phone in whatsapp_phones:
             results["whatsapp"].append(await send_whatsapp_alert(phone, data))
-
-    if settings.resend_api_key and emails:
+    if "email" in enabled and settings.resend_api_key and emails:
         results["email"] = await send_email_alert(emails, data)
 
     db.collection("alerts").document(alert_id).update({"status": "published"})

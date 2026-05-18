@@ -61,10 +61,16 @@ export default function SimpleDossier({
     : "—";
   const confidence = Math.round((alert.confidence || 0) * 100);
 
-  // Climate context — uses persisted or freshly-fetched ENSO state.
-  const climate = alert.climate_state ?? climateState;
-  const scenario = alert.el_nino_scenario ?? (climate && pred ? projectUnderElNino(pred, climate) : null);
-  const climateActive = climate && climate.severity > 0;
+  // Climate context — the /state/at-alert endpoint returns { current, historical }.
+  // For the narrative we use the historical state (what ENSO looked like when the
+  // incident actually happened) and fall back to current if no historical match.
+  const climate =
+    alert.climate_state ??
+    climateState?.historical ??
+    climateState?.current ??
+    climateState;
+  const scenario = alert.el_nino_scenario ?? (climate?.label && pred ? projectUnderElNino(pred, climate) : null);
+  const climateActive = climate?.severity > 0;
 
   return (
     <div className="space-y-5">

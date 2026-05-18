@@ -126,12 +126,29 @@
   "climate": {
     "panel_title": "Contexto climático ENSO",
     "severity": "Severidad",
+    "at_incident_date": "Al momento del incidente",
+    "today": "Hoy",
+    "when_incident": "Cuando ocurrió",
+    "trend_3_4": "Tendencia 3m Niño 3.4",
+    "three_month_avg": "Promedio 3 meses",
+    "costero_threshold_met": "Umbral ENFEN cumplido",
     "scenario_compare_title": "Comparación de escenarios",
     "base_label": "Predicción base",
     "nino_label": "Bajo El Niño activo",
     "method_prefix": "Método",
     "sources": "Fuentes",
     "costero_explainer": "Calentamiento concentrado en costa peruana (Niño 1+2) con Niño 3.4 neutral. Patrón que causó inundaciones devastadoras en 2017 y 2023.",
+    "explainer": {
+      "costero": "El Niño Costero significa que el océano cerca de la costa peruana se está calentando más de lo normal. Esto trae lluvias intensas, los ríos amazónicos crecen rápido (hasta 10 m en pocas semanas), y los contaminantes que normalmente se quedarían concentrados ahora viajan cientos de kilómetros río abajo. Pasó en 2017 y 2023 con inundaciones devastadoras.",
+      "el_nino": "El Niño global está activo. En la Amazonía esto suele significar menos lluvia y ríos más bajos: los contaminantes se concentran en el agua restante, aumentando su toxicidad por unidad de volumen.",
+      "la_nina": "La Niña está activa: temperaturas oceánicas por debajo de lo normal. En Amazonía puede traer lluvias más fuertes que dispersan contaminantes pero también los diluyen.",
+      "neutral": "Condiciones ENSO neutras (ni El Niño ni La Niña). El impacto sigue siendo serio, pero sin amplificación por anomalía climática."
+    },
+    "trend": {
+      "rising": "Calentamiento progresivo",
+      "falling": "Enfriamiento progresivo",
+      "stable": "Estable"
+    },
     "labels": {
       "neutral": "ENSO neutral",
       "la_nina_weak": "La Niña débil",

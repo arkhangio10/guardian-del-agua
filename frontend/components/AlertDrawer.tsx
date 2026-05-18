@@ -79,11 +79,11 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
       .catch(() => setAlert(null))
       .finally(() => setLoading(false));
 
-    // Always fetch current ENSO climate state — demo alerts seeded directly into
-    // Firestore never went through /predict, so they don't have climate_state
-    // persisted. Showing the climate context regardless makes the layer visible
-    // and lets the user reason about projection even on historical alerts.
-    fetch(`${apiBase}/climate/state`)
+    // Fetch ENSO state for the alert (historical at incident date + current).
+    // Demo alerts seeded directly into Firestore never went through /predict,
+    // so they don't have climate_state persisted — fetching here guarantees the
+    // panel renders and adds historical context not available before.
+    fetch(`${apiBase}/climate/state/at-alert/${alertId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setClimateState(data))
       .catch(() => setClimateState(null));
@@ -398,11 +398,25 @@ export default function AlertDrawer({ alertId, apiBase, onClose }: Props) {
               )}
 
               {(() => {
-                const climate = alert.climate_state ?? climateState;
-                if (!climate) return null;
+                // climateState from /state/at-alert returns {current, historical}.
+                // For the alert's narrative the historical state is primary;
+                // fall back to current if historical is unavailable.
+                const climate =
+                  alert.climate_state
+                  ?? climateState?.historical
+                  ?? climateState?.current
+                  ?? climateState;
+                if (!climate?.label) return null;
                 const scenario =
                   alert.el_nino_scenario ?? projectUnderElNino(pred, climate);
-                return <ClimatePanel climate={climate} base={pred} scenario={scenario} />;
+                return (
+                  <ClimatePanel
+                    climate={climate}
+                    current={climateState?.current ?? null}
+                    base={pred}
+                    scenario={scenario}
+                  />
+                );
               })()}
 
               <Panel title={t("actions_panel")} tone="default">
@@ -620,10 +634,12 @@ const CLIMATE_LABEL: Record<string, { label: string; emoji: string; tone: string
 
 function ClimatePanel({
   climate,
+  current,
   base,
   scenario,
 }: {
   climate: any;
+  current?: any;
   base: any;
   scenario: any;
 }) {
@@ -633,8 +649,22 @@ function ClimatePanel({
   const isCostero = climate?.el_nino_costero === true;
   const severity = Math.max(0, Math.min(1, Number(climate?.severity) || 0));
   const sevPct = Math.round(severity * 100);
+  const isHistorical = climate?.is_historical === true;
+  const showThenVsNow = isHistorical && current && current.label !== labelKey;
 
   const showScenario = !!scenario && severity > 0;
+
+  // Plain-language explainer chosen by category
+  const explainerKey = (() => {
+    if (isCostero) return "costero";
+    if (labelKey.startsWith("el_nino")) return "el_nino";
+    if (labelKey.startsWith("la_nina")) return "la_nina";
+    return "neutral";
+  })();
+
+  const trend34 = climate?.trend?.nino_3_4;
+  const trend12 = climate?.trend?.nino_1_2;
+  const threeMo = climate?.three_month_average;
 
   return (
     <section className={`rounded-xl border ${meta.tone} p-4 space-y-3`}>
@@ -646,9 +676,14 @@ function ClimatePanel({
           <h3 className="text-[10px] uppercase tracking-[0.18em] font-semibold">
             {tClim("panel_title")}
           </h3>
+          {isHistorical && (
+            <span className="text-[9px] uppercase tracking-wider font-mono opacity-70 px-1.5 py-0.5 rounded bg-current/10">
+              {tClim("at_incident_date")}
+            </span>
+          )}
         </div>
         <span className="text-[10px] font-mono uppercase tracking-wider opacity-80">
-          {climate?.observation_year} · Niño 3.4: {climate?.nino_3_4_anomaly_c?.toFixed(2)}°C
+          {climate?.reference_date ?? climate?.observation_year} · Niño 3.4: {climate?.nino_3_4_anomaly_c?.toFixed(2)}°C
           {climate?.nino_1_2_anomaly_c != null && (
             <> · Niño 1+2: {climate.nino_1_2_anomaly_c.toFixed(2)}°C</>
           )}
@@ -658,15 +693,65 @@ function ClimatePanel({
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <div>
           <div className="text-xl font-bold">{tClim(`labels.${labelKey}` as any) ?? meta.label}</div>
-          {isCostero && (
-            <p className="text-[11px] opacity-80 mt-0.5">{tClim("costero_explainer")}</p>
-          )}
         </div>
         <div className="text-right">
           <div className="text-xs uppercase tracking-wider opacity-60">{tClim("severity")}</div>
           <div className="text-2xl font-bold leading-none mt-0.5">{sevPct}%</div>
         </div>
       </div>
+
+      {/* Plain-language explainer */}
+      <p className="text-[12px] leading-snug opacity-90 bg-current/5 border border-current/15 rounded-lg px-3 py-2">
+        {tClim(`explainer.${explainerKey}` as any)}
+      </p>
+
+      {/* Then vs now */}
+      {showThenVsNow && (
+        <div className="flex items-center justify-between gap-3 text-[11px] bg-slate-950/40 border border-slate-700/30 rounded-lg px-3 py-2">
+          <div>
+            <div className="text-[9px] uppercase tracking-wider opacity-60">{tClim("today")}</div>
+            <div className="font-semibold">{tClim(`labels.${current.label}` as any)}</div>
+          </div>
+          <span className="opacity-50">→</span>
+          <div className="text-right">
+            <div className="text-[9px] uppercase tracking-wider opacity-60">{tClim("when_incident")}</div>
+            <div className="font-semibold">{tClim(`labels.${labelKey}` as any)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Trend + 3-month average */}
+      {(trend34 || threeMo) && (
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          {trend34 && (
+            <div className="bg-slate-950/40 border border-slate-700/30 rounded-md px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-wider opacity-60">{tClim("trend_3_4")}</div>
+              <div className="mt-0.5 font-semibold flex items-center gap-1">
+                <TrendArrow direction={trend34.direction} />
+                <span>
+                  {tClim(`trend.${trend34.direction}` as any)}
+                  <span className="opacity-60 font-mono ml-1">
+                    ({trend34.delta_c > 0 ? "+" : ""}{trend34.delta_c}°C)
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+          {threeMo?.nino_1_2_avg_c != null && (
+            <div className="bg-slate-950/40 border border-slate-700/30 rounded-md px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-wider opacity-60">
+                {tClim("three_month_avg")} Niño 1+2
+              </div>
+              <div className="mt-0.5 font-semibold">
+                {threeMo.nino_1_2_avg_c > 0 ? "+" : ""}{threeMo.nino_1_2_avg_c.toFixed(2)}°C
+                {threeMo.costero_declared && (
+                  <span className="ml-1.5 text-red-300 text-[10px]">✓ {tClim("costero_threshold_met")}</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {showScenario && base && (
         <div className="pt-2 border-t border-current/20">
@@ -759,4 +844,10 @@ function ScenarioRow({
       </span>
     </div>
   );
+}
+
+function TrendArrow({ direction }: { direction: string }) {
+  if (direction === "rising") return <span className="text-red-300">↗</span>;
+  if (direction === "falling") return <span className="text-sky-300">↘</span>;
+  return <span className="text-slate-400">→</span>;
 }

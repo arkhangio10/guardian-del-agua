@@ -117,12 +117,29 @@
   "climate": {
     "panel_title": "ENSO climate context",
     "severity": "Severity",
+    "at_incident_date": "At incident date",
+    "today": "Today",
+    "when_incident": "When it happened",
+    "trend_3_4": "3-month trend Niño 3.4",
+    "three_month_avg": "3-month average",
+    "costero_threshold_met": "ENFEN threshold met",
     "scenario_compare_title": "Scenario comparison",
     "base_label": "Base prediction",
     "nino_label": "Under active El Niño",
     "method_prefix": "Method",
     "sources": "Sources",
     "costero_explainer": "Warming concentrated on the Peruvian coast (Niño 1+2) while Niño 3.4 stays neutral. The pattern that drove devastating Amazon floods in 2017 and 2023.",
+    "explainer": {
+      "costero": "Coastal El Niño means the ocean off the Peruvian coast is warming more than usual. This brings intense rains, Amazon tributaries rise fast (up to 10 m in weeks), and contaminants that would normally stay concentrated now travel hundreds of kilometers downstream. It happened in 2017 and 2023 with devastating floods.",
+      "el_nino": "Global El Niño is active. In the Amazon this usually means less rain and lower rivers: contaminants concentrate in the remaining water, increasing toxicity per unit volume.",
+      "la_nina": "La Niña is active: cooler-than-normal ocean. In the Amazon it can bring stronger rains that disperse contaminants but also dilute them.",
+      "neutral": "Neutral ENSO conditions (neither El Niño nor La Niña). The impact is still serious, but not amplified by climate anomaly."
+    },
+    "trend": {
+      "rising": "Warming trend",
+      "falling": "Cooling trend",
+      "stable": "Stable"
+    },
     "labels": {
       "neutral": "ENSO neutral",
       "la_nina_weak": "Weak La Niña",

@@ -130,3 +130,31 @@ async def run_full_pipeline(req: PipelineRequest):
     db = get_db()
     doc = db.collection("alerts").document(alert_id).get()
     return {"alert_id": alert_id, "pipeline": "complete", "alert": doc.to_dict()}
+
+
+@app.post("/admin/wipe-demos", tags=["Admin"])
+async def wipe_demo_alerts(confirm: str = ""):
+    """
+    Delete every Firestore alert document whose ID starts with the literal
+    string "demo-alert-". Requires confirm=YES_WIPE_DEMOS to proceed —
+    we don't want a stray probe to flush data.
+
+    The prefix is hard-coded so this endpoint can NEVER touch real alerts
+    (whose IDs are UUIDs). Returns the list of deleted IDs.
+    """
+    if confirm != "YES_WIPE_DEMOS":
+        return {
+            "wiped": False,
+            "message": "Pass ?confirm=YES_WIPE_DEMOS to actually delete demo alerts.",
+        }
+
+    from db import get_db
+    db = get_db()
+    deleted: list[str] = []
+    for doc in db.collection("alerts").stream():
+        if doc.id.startswith("demo-alert-"):
+            doc.reference.delete()
+            deleted.append(doc.id)
+
+    print(f"[admin] wiped {len(deleted)} demo alerts: {deleted}", flush=True)
+    return {"wiped": True, "count": len(deleted), "alert_ids": deleted}
